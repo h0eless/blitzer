@@ -10,8 +10,8 @@ Two pieces:
   the live report feed into SQLite, keeps a permanent archive, exports
   GeoJSON / KML / GPX / `map.html`.
 - **`make_app.py`** — bakes the database into one self-contained HTML file
-  (`blitzer_app.html`) that installs on an iPhone via Safari →
-  *Zum Home-Bildschirm*. No server, no build step.
+  (`blitzer_app.html`, published as `index.html`) that installs on an iPhone via
+  Safari → *Zum Home-Bildschirm*. No server, no build step.
 
 Everything the app shows comes from public blitzer.de data.
 
@@ -30,6 +30,16 @@ powershell -ExecutionPolicy Bypass -File .\daily.ps1
 
 Upload `blitzer_app.html` as `index.html` to any static host (GitHub Pages,
 Netlify) and add it to the home screen once.
+
+This repo is set up the same way: GitHub Pages serves `index.html` from `main`
+at <https://h0eless.github.io/blitzer/>. `daily.ps1` writes the build to
+`blitzer_app.html` and copies it over `index.html`, so publishing is one push:
+
+```powershell
+git add index.html
+git commit -m "Daily update"
+git push
+```
 
 ## What the app shows
 
@@ -85,8 +95,8 @@ prints what is new. Register it once:
 schtasks /Create /TN "Blitzer Archiv" /SC DAILY /ST 07:00 /TR 'powershell -WindowStyle Hidden -ExecutionPolicy Bypass -File "C:\Users\vladi\Documents\Standardprojekt\daily.ps1"'
 ```
 
-The script only rebuilds the file locally — upload `blitzer_app.html` again (as
-`index.html`) to update the phone.
+The script only rebuilds the files locally — commit and push `index.html` after
+it to update the phone.
 
 For fresher "live" pins during the day, run the watcher in a second window:
 
@@ -100,7 +110,8 @@ python mobile_hotspots.py watch --interval 900 --auto-export
 | --- | --- |
 | `mobile_hotspots.py` | scraper, archive schema, dedupe, clustering, exports, CLI |
 | `make_app.py` | generates `blitzer_app.html` from the database |
-| `blitzer_app.html` | the installable app (upload as `index.html`) |
+| `blitzer_app.html` | local build output (ignored by git) |
+| `index.html` | the published app — this is what GitHub Pages serves |
 | `hotspots.sqlite3` | archive: `webspots`, `sightings`, `sighting_days`, `meta` |
 | `daily.ps1` | daily scrape + rebuild + "new" report |
 | `hotspots_out/` | generated GeoJSON / KML / GPX / Leaflet page |
