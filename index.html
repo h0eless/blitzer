@@ -5,9 +5,9 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,maximum-scale=1">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="Blitzer Hotspots">
+<meta name="apple-mobile-web-app-title" content="Blitzer Siegen">
 <meta name="theme-color" content="#0b0d10">
-<title>Blitzer Hotspots</title>
+<title>Blitzer Siegen</title>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <style>
 :root{
@@ -56,6 +56,38 @@ main{flex:1;position:relative;padding-top:calc(var(--safe-t) + 62px)}
   box-shadow:0 0 0 3px rgba(0,0,0,.25),0 6px 14px rgba(0,0,0,.5)}
 .pin span{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
   font-size:10px;font-weight:800;color:#08120e}
+
+/* floating buttons on the map */
+.fab{position:fixed;right:14px;z-index:1100;width:46px;height:46px;border-radius:50%;
+  display:flex;align-items:center;justify-content:center;border:1px solid rgba(255,255,255,.14);
+  background:rgba(23,27,33,.94);-webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px);
+  color:#cfd6e0;box-shadow:0 6px 18px rgba(0,0,0,.45)}
+.fab.on{background:var(--accent);border-color:var(--accent);color:#06231a}
+.fab svg{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:1.9;
+  stroke-linecap:round;stroke-linejoin:round}
+#fabFollow{bottom:calc(var(--safe-b) + 128px)}
+#fabZoom{bottom:calc(var(--safe-b) + 76px)}
+.fab:active{transform:scale(.94)}
+
+/* my position */
+.me{position:relative}
+.me__dot{width:16px;height:16px;border-radius:50%;background:#2f7cf6;
+  border:3px solid #fff;box-shadow:0 0 0 2px rgba(47,124,246,.35),0 3px 10px rgba(0,0,0,.5)}
+.me__pulse{position:absolute;inset:-6px;border-radius:50%;background:rgba(47,124,246,.28);
+  animation:pulse 2s ease-out infinite}
+@keyframes pulse{0%{transform:scale(.6);opacity:.9}100%{transform:scale(2.4);opacity:0}}
+
+/* toast + warning */
+.toast{position:fixed;left:50%;bottom:calc(var(--safe-b) + 96px);transform:translate(-50%,14px);
+  z-index:2000;max-width:86vw;padding:11px 16px;border-radius:14px;font-size:13px;
+  background:rgba(32,38,47,.97);border:1px solid var(--line);color:var(--txt);text-align:center;
+  opacity:0;pointer-events:none;transition:all .24s}
+.toast.on{opacity:1;transform:translate(-50%,0)}
+.warn{position:fixed;top:calc(var(--safe-t) + 62px);left:0;right:0;z-index:1150;
+  padding:9px 16px;font-size:12.5px;line-height:1.35;
+  background:rgba(255,159,67,.14);border-bottom:1px solid rgba(255,159,67,.3);
+  color:#ffcb8a;display:none}
+.warn.on{display:block}
 
 /* list */
 .listwrap{padding:6px 14px calc(var(--safe-b) + 84px)}
@@ -142,7 +174,7 @@ nav svg{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:1.8;
 <header>
   <div class="hrow">
     <div class="brand">
-      <h1>Blitzer Hotspots</h1>
+      <h1>Blitzer Siegen</h1>
       <small><span id="count">65</span> Messstellen · Stand 2026-11-13</small>
     </div>
     <button class="geobtn" id="geo">
@@ -153,7 +185,16 @@ nav svg{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:1.8;
 </header>
 
 <main>
-  <div class="view on" id="v-map"><div id="map"></div></div>
+  <div class="warn" id="warn"></div>
+  <div class="view on" id="v-map">
+    <div id="map"></div>
+    <button class="fab" id="fabFollow" aria-label="Standort folgen">
+      <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="2.6"/><circle cx="12" cy="12" r="7" opacity=".5"/><path d="M12 2.2v2.6M12 19.2v2.6M2.2 12h2.6M19.2 12h2.6"/></svg>
+    </button>
+    <button class="fab" id="fabZoom" aria-label="Auf mich zoomen">
+      <svg viewBox="0 0 24 24"><path d="M12 3.2 19 20.4l-7-3.6-7 3.6 7-17.2Z"/></svg>
+    </button>
+  </div>
 
   <div class="view" id="v-list">
     <div class="listwrap">
@@ -224,13 +265,16 @@ nav svg{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:1.8;
   <a class="openlink" id="sh-link" href="#" target="_blank" rel="noopener">Details auf blitzer.de</a>
 </div>
 
+<div class="toast" id="toast"></div>
+
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
 const SITES = [{"lat": 50.886832, "lng": 7.997725, "reports": 17, "distinct_reports": 0, "days": 17, "street": "Freudenberger Straße", "streets": ["Freudenberger Straße"], "city": "Siegen", "vmax": [70], "first_seen": "", "last_seen": "November 2026", "months": {"Dezember 2025": 0, "Januar 2026": 1, "Februar 2026": 0, "März 2026": 2, "April 2026": 1, "Mai 2026": 1, "Juni 2026": 2, "Juli 2026": 1, "August 2026": 0, "September 2026": 1, "Oktober 2026": 1, "November 2026": 0}, "source": "ort", "url": "https://www.blitzer.de/detail/mobile-messstelle-in-Siegen,Freudenberger+Stra%C3%9Fe/75316a30-6d7a-7832-3172-65677265626e"}, {"lat": 50.871317, "lng": 8.020899, "reports": 17, "distinct_reports": 0, "days": 17, "street": "Spandauer Straße", "streets": ["Spandauer Straße"], "city": "Siegen", "vmax": [50], "first_seen": "", "last_seen": "November 2026", "months": {"Dezember 2025": 0, "Januar 2026": 0, "Februar 2026": 0, "März 2026": 3, "April 2026": 0, "Mai 2026": 0, "Juni 2026": 0, "Juli 2026": 1, "August 2026": 1, "September 2026": 0, "Oktober 2026": 1, "November 2026": 0}, "source": "ort", "url": "https://www.blitzer.de/detail/mobile-messstelle-in-Siegen,Spandauer+Stra%C3%9Fe/75316a30-7173-6231-3772-657561646e61"}, {"lat": 50.947221, "lng": 8.002038, "reports": 16, "distinct_reports": 0, "days": 16, "street": "Hüttentalstraße", "streets": ["Hüttentalstraße"], "city": "Kreuztal", "vmax": [60], "first_seen": "", "last_seen": "November 2026", "months": {"Dezember 2025": 1, "Januar 2026": 0, "Februar 2026": 0, "März 2026": 2, "April 2026": 1, "Mai 2026": 1, "Juni 2026": 2, "Juli 2026": 1, "August 2026": 0, "September 2026": 0, "Oktober 2026": 1, "November 2026": 1}, "source": "ort", "url": "https://www.blitzer.de/detail/mobile-messstelle-in-Kreuztal,H%C3%BCttentalstra%C3%9Fe/75316a30-7934-6431-376c-61746e657474"}, {"lat": 50.910326, "lng": 8.013732, "reports": 15, "distinct_reports": 0, "days": 15, "street": "Hüttentalstraße", "streets": ["Hüttentalstraße"], "city": "Siegen", "vmax": [100], "first_seen": "", "last_seen": "November 2026", "months": {"Dezember 2025": 0, "Januar 2026": 0, "Februar 2026": 0, "März 2026": 0, "April 2026": 0, "Mai 2026": 2, "Juni 2026": 1, "Juli 2026": 0, "August 2026": 1, "September 2026": 2, "Oktober 2026": 0, "November 2026": 1}, "source": "ort", "url": "https://www.blitzer.de/detail/mobile-messstelle-in-Siegen,H%C3%BCttentalstra%C3%9Fe/75316a30-7737-6731-376c-61746e657474"}, {"lat": 50.90398, "lng": 8.016779, "reports": 15, "distinct_reports": 0, "days": 15, "street": "Hüttentalstraße", "streets": ["Hüttentalstraße"], "city": "Siegen", "vmax": [80], "first_seen": "", "last_seen": "November 2026", "months": {"Dezember 2025": 0, "Januar 2026": 0, "Februar 2026": 1, "März 2026": 2, "April 2026": 1, "Mai 2026": 0, "Juni 2026": 0, "Juli 2026": 0, "August 2026": 2, "September 2026": 1, "Oktober 2026": 0, "November 2026": 0}, "source": "ort", "url": "https://www.blitzer.de/detail/mobile-messstelle-in-Siegen,H%C3%BCttentalstra%C3%9Fe/75316a30-7736-7631-376c-61746e657474"}, {"lat": 50.865981, "lng": 8.032465, "reports": 13, "distinct_reports": 0, "days": 13, "street": "Friedrich-Wilhelm-Straße", "streets": ["Friedrich-Wilhelm-Straße"], "city": "Siegen", "vmax": [30], "first_seen": "", "last_seen": "November 2026", "months": {"Dezember 2025": 0, "Januar 2026": 0, "Februar 2026": 2, "März 2026": 0, "April 2026": 0, "Mai 2026": 0, "Juni 2026": 2, "Juli 2026": 0, "August 2026": 1, "September 2026": 0, "Oktober 2026": 0, "November 2026": 1}, "source": "ort", "url": "https://www.blitzer.de/detail/mobile-messstelle-in-Siegen,Friedrich-Wilhelm-Stra%C3%9Fe/75316a30-7167-6332-352d-6d6c65686c69"}, {"lat": 50.868595, "lng": 8.045018, "reports": 13, "distinct_reports": 0, "days": 13, "street": "Frankfurter Straße", "streets": ["Frankfurter Straße"], "city": "Siegen", "vmax": [50], "first_seen": "", "last_seen": "November 2026", "months": {"Dezember 2025": 1, "Januar 2026": 1, "Februar 2026": 2, "März 2026": 2, "April 2026": 0, "Mai 2026": 2, "Juni 2026": 2, "Juli 2026": 3, "August 2026": 4, "September 2026": 3, "Oktober 2026": 2, "November 2026": 2}, "source": "ort", "url": "https://www.blitzer.de/detail/mobile-messstelle-in-Siegen,Frankfurter+Stra%C3%9Fe/75316a30-7268-3631-3972-65747275666b"}, {"lat": 50.853182, "lng": 8.022594, "reports": 12, "distinct_reports": 0, "days": 12, "street": "Leimbachstraße", "streets": ["Leimbachstraße"], "city": "Siegen", "vmax": [50], "first_seen": "", "last_seen": "Oktober 2026", "months": {"Dezember 2025": 0, "Januar 2026": 0, "Februar 2026": 0, "März 2026": 0, "April 2026": 0, "Mai 2026": 0, "Juni 2026": 0, "Juli 2026": 0, "August 2026": 0, "September 2026": 0, "Oktober 2026": 2, "November 2026": 1}, "source": "ort", "url": "https://www.blitzer.de/detail/mobile-messstelle-in-Siegen,Leimbachstra%C3%9Fe/a69fc5f7-d037-16ba-3988-eb13a0b273d5"}, {"lat": 50.88093, "lng": 8.023882, "reports": 11, "distinct_reports": 0, "days": 11, "street": "Hüttentalstraße", "streets": ["Hüttentalstraße"], "city": "Siegen", "vmax": [60], "first_seen": "", "last_seen": "November 2026", "months": {"Dezember 2025": 2, "Januar 2026": 1, "Februar 2026": 2, "März 2026": 1, "April 2026": 2, "Mai 2026": 1, "Juni 2026": 2, "Juli 2026": 2, "August 2026": 0, "September 2026": 2, "Oktober 2026": 1, "November 2026": 1}, "source": "ort", "url": "https://www.blitzer.de/detail/mobile-messstelle-in-Siegen,H%C3%BCttentalstra%C3%9Fe/75316a30-7177-6431-376c-61746e657474"}, {"lat": 50.94234, "lng": 7.940712, "reports": 11, "distinct_reports": 0, "days": 11, "street": "Heesstraße", "streets": ["Heesstraße"], "city": "Kreuztal", "vmax": [70], "first_seen": "", "last_seen": "November 2026", "months": {"Dezember 2025": 0, "Januar 2026": 1, "Februar 2026": 1, "März 2026": 0, "April 2026": 1, "Mai 2026": 0, "Juni 2026": 0, "Juli 2026": 1, "August 2026": 0, "September 2026": 0, "Oktober 2026": 1, "November 2026": 0}, "source": "ort", "url": "https://www.blitzer.de/detail/mobile-messstelle-in-Kreuztal,Heesstra%C3%9Fe/00000030-316a-3975-3979-313173656548"}, {"lat": 50.87351, "lng": 8.031821, "reports": 11, "distinct_reports": 0, "days": 11, "street": "Hainer Hütte", "streets": ["Hainer Hütte"], "city": "Siegen", "vmax": [50], "first_seen": "", "last_seen": "November 2026", "months": {"Dezember 2025": 0, "Januar 2026": 1, "Februar 2026": 1, "März 2026": 0, "April 2026": 0, "Mai 2026": 2, "Juni 2026": 0, "Juli 2026": 1, "August 2026": 0, "September 2026": 1, "Oktober 2026": 0, "November 2026": 0}, "source": "ort", "url": "https://www.blitzer.de/detail/mobile-messstelle-in-Siegen,Hainer+H%C3%BCtte/75316a30-7176-3031-3365-7474bcc34820"}, {"lat": 50.844443, "lng": 7.968907, "reports": 10, "distinct_reports": 0, "days": 10, "street": "Siegtalstraße", "streets": ["Siegtalstraße"], "city": "Siegen", "vmax": [30], "first_seen": "", "last_seen": "September 2026", "months": {"Dezember 2025": 4, "Januar 2026": 3, "Februar 2026": 0, "März 2026": 0, "April 2026": 0, "Mai 2026": 1, "Juni 2026": 0, "Juli 2026": 0, "August 2026": 0, "September 2026": 0, "Oktober 2026": 1, "November 2026": 0}, "source": "ort", "url": "https://www.blitzer.de/detail/mobile-messstelle-in-Siegen,Siegtalstra%C3%9Fe/75316a30-6a72-6631-346c-617467656953"}, {"lat": 50.871506, "lng": 8.006287, "reports": 10, "distinct_reports": 0, "days": 10, "street": "Friedrich-Friesen-Straße", "streets": ["Friedrich-Friesen-Straße"], "city": "Siegen", "vmax": [80], "first_seen": "", "last_seen": "Oktober 2026", "months": {"Dezember 2025": 0, "Januar 2026": 0, "Februar 2026": 0, "März 2026": 0, "April 2026": 0, "Mai 2026": 0, "Juni 2026": 0, "Juli 2026": 0, "August 2026": 0, "September 2026": 0, "Oktober 2026": 4, "November 2026": 0}, "source": "ort", "url": "https://www.blitzer.de/detail/mobile-messstelle-in-Siegen,Friedrich-Friesen-Stra%C3%9Fe/d8aefa08-9713-81ee-244e-5f280e3ef32e"}, {"lat": 50.948965, "lng": 7.995107, "reports": 10, "distinct_reports": 0, "days": 10, "street": "Hüttentalstraße", "streets": ["Hüttentalstraße"], "city": "Kreuztal", "vmax": [80], "first_seen": "", "last_seen": "November 2026", "months": {"Dezember 2025": 1, "Januar 2026": 0, "Februar 2026": 2, "März 2026": 2, "April 2026": 2, "Mai 2026": 0, "Juni 2026": 1, "Juli 2026": 1, "August 2026": 0, "September 2026": 3, "Oktober 2026": 2, "November 2026": 1}, "source": "ort", "url": "https://www.blitzer.de/detail/mobile-messstelle-in-Kreuztal,H%C3%BCttentalstra%C3%9Fe/75316a30-7666-7631-376c-61746e657474"}, {"lat": 50.939447, "lng": 8.00648, "reports": 10, "distinct_reports": 0, "days": 10, "street": "Hüttentalstraße", "streets": ["Hüttentalstraße"], "city": "Kreuztal", "vmax": [100], "first_seen": "", "last_seen": "November 2026", "months": {"Dezember 2025": 1, "Januar 2026": 1, "Februar 2026": 0, "März 2026": 0, "April 2026": 1, "Mai 2026": 1, "Juni 2026": 0, "Juli 2026": 1, "August 2026": 0, "September 2026": 1, "Oktober 2026": 0, "November 2026": 0}, "source": "ort", "url": "https://www.blitzer.de/detail/mobile-messstelle-in-Kreuztal,H%C3%BCttentalstra%C3%9Fe/75316a30-7931-6e31-376c-61746e657474"}, {"lat": 50.88269, "lng": 8.00487, "reports": 10, "distinct_reports": 0, "days": 10, "street": "Freudenberger Straße", "streets": ["Freudenberger Straße"], "city": "Siegen", "vmax": [50], "first_seen": "", "last_seen": "Oktober 2026", "months": {"Dezember 2025": 0, "Januar 2026": 1, "Februar 2026": 2, "März 2026": 0, "April 2026": 4, "Mai 2026": 3, "Juni 2026": 0, "Juli 2026": 2, "August 2026": 0, "September 2026": 1, "Oktober 2026": 1, "November 2026": 1}, "source": "ort", "url": "https://www.blitzer.de/detail/mobile-messstelle-in-Siegen,Freudenberger+Stra%C3%9Fe/75316a30-716e-7532-3172-65677265626e"}, {"lat": 50.822733, "lng": 8.009183, "reports": 10, "distinct_reports": 0, "days": 10, "street": "Freiengründer Straße", "streets": ["Freiengründer Straße"], "city": "Siegen", "vmax": [50], "first_seen": "", "last_seen": "November 2026", "months": {"Dezember 2025": 0, "Januar 2026": 0, "Februar 2026": 1, "März 2026": 1, "April 2026": 0, "Mai 2026": 0, "Juni 2026": 1, "Juli 2026": 2, "August 2026": 0, "September 2026": 0, "Oktober 2026": 1, "November 2026": 1}, "source": "ort", "url": "https://www.blitzer.de/detail/mobile-messstelle-in-Siegen,Freiengr%C3%BCnder+Stra%C3%9Fe/75316a30-6e37-6232-3272-65646ebcc372"}, {"lat": 50.845405, "lng": 7.972598, "reports": 9, "distinct_reports": 0, "days": 9, "street": "Bühlstraße", "streets": ["Bühlstraße"], "city": "Siegen", "vmax": [30], "first_seen": "", "last_seen": "Oktober 2026", "months": {"Dezember 2025": 3, "Januar 2026": 0, "Februar 2026": 0, "März 2026": 1, "April 2026": 1, "Mai 2026": 0, "Juni 2026": 1, "Juli 2026": 1, "August 2026": 0, "September 2026": 3, "Oktober 2026": 0, "November 2026": 0}, "source": "ort", "url": "https://www.blitzer.de/detail/mobile-messstelle-in-Siegen,B%C3%BChlstra%C3%9Fe/00007530-6a39-6d32-6a31-326c68bcc342"}, {"lat": 50.922352, "lng": 8.015127, "reports": 9, "distinct_reports": 0, "days": 9, "street": "Hüttentalstraße", "streets": ["Hüttentalstraße"], "city": "Siegen", "vmax": [100], "first_seen": "", "last_seen": "Oktober 2026", "months": {"Dezember 2025": 1, "Januar 2026": 0, "Februar 2026": 1, "März 2026": 1, "April 2026": 0, "Mai 2026": 0, "Juni 2026": 1, "Juli 2026": 2, "August 2026": 1, "September 2026": 0, "Oktober 2026": 0, "November 2026": 2}, "source": "ort", "url": "https://www.blitzer.de/detail/mobile-messstelle-in-Siegen,H%C3%BCttentalstra%C3%9Fe/75316a30-7771-6831-376c-61746e657474"}, {"lat": 50.922812, "lng": 8.012595, "reports": 9, "distinct_reports": 0, "days": 9, "street": "Geisweider Straße", "streets": ["Geisweider Straße"], "city": "Siegen", "vmax": [50], "first_seen": "", "last_seen": "November 2026", "months": {"Dezember 2025": 0, "Januar 2026": 0, "Februar 2026": 1, "März 2026": 1, "April 2026": 0, "Mai 2026": 0, "Juni 2026": 0, "Juli 2026": 1, "August 2026": 2, "September 2026": 3, "Oktober 2026": 1, "November 2026": 0}, "source": "ort", "url": "https://www.blitzer.de/detail/mobile-messstelle-in-Siegen,Geisweider+Stra%C3%9Fe/75316a30-7771-3431-3872-656469657773"}, {"lat": 50.919268, "lng": 8.01326, "reports": 9, "distinct_reports": 0, "days": 9, "street": "Geisweider Straße", "streets": ["Geisweider Straße"], "city": "Siegen", "vmax": [50], "first_seen": "", "last_seen": "November 2026", "months": {"Dezember 2025": 0, "Januar 2026": 0, "Februar 2026": 0, "März 2026": 0, "April 2026": 0, "Mai 2026": 0, "Juni 2026": 0, "Juli 2026": 0, "August 2026": 0, "September 2026": 0, "Oktober 2026": 3, "November 2026": 1}, "source": "ort", "url": "https://www.blitzer.de/detail/mobile-messstelle-in-Siegen,Geisweider+Stra%C3%9Fe/b3003514-567b-a1c1-a81a-7bdb79229672"}, {"lat": 50.910908, "lng": 7.979894, "reports": 8, "distinct_reports": 0, "days": 8, "street": "Hofbachstraße", "streets": ["Hofbachstraße"], "city": "Siegen", "vmax": [30], "first_seen": "", "last_seen": "September 2026", "months": {"Dezember 2025": 0, "Januar 2026": 1, "Februar 2026": 0, "März 2026": 2, "April 2026": 1, "Mai 2026": 0, "Juni 2026": 1, "Juli 2026": 0, "August 2026": 1, "September 2026": 0, "Oktober 2026": 0, "November 2026": 0}, "source": "ort", "url": "https://www.blitzer.de/detail/mobile-messstelle-in-Siegen,Hofbachstra%C3%9Fe/75316a30-7473-3431-3468-636162666f48"}, {"lat": 50.900719, "lng": 8.04285, "reports": 8, "distinct_reports": 0, "days": 8, "street": "Engsbachstraße", "streets": ["Engsbachstraße"], "city": "Siegen", "vmax": [50], "first_seen": "", "last_seen": "November 2026", "months": {"Dezember 2025": 0, "Januar 2026": 0, "Februar 2026": 1, "März 2026": 0, "April 2026": 0, "Mai 2026": 0, "Juni 2026": 2, "Juli 2026": 0, "August 2026": 1, "September 2026": 0, "Oktober 2026": 1, "November 2026": 0}, "source": "ort", "url": "https://www.blitzer.de/detail/mobile-messstelle-in-Siegen,Engsbachstra%C3%9Fe/75316a30-7834-3031-3568-63616273676e"}, {"lat": 50.888768, "lng": 8.045769, "reports": 8, "distinct_reports": 0, "days": 8, "street": "Giersbergstraße", "streets": ["Giersbergstraße"], "city": "Siegen", "vmax": [50], "first_seen": "", "last_seen": "November 2026", "months": {"Dezember 2025": 0, "Januar 2026": 0, "Februar 2026": 0, "März 2026": 0, "April 2026": 2, "Mai 2026": 2, "Juni 2026": 0, "Juli 2026": 0, "August 2026": 0, "September 2026": 0, "Oktober 2026": 0, "November 2026": 0}, "source": "ort", "url": "https://www.blitzer.de/detail/mobile-messstelle-in-Siegen,Giersbergstra%C3%9Fe/75316a30-7830-3431-3667-726562737265"}, {"lat": 50.971319, "lng": 7.964573, "reports": 8, "distinct_reports": 0, "days": 8, "street": "Hüttentalstraße", "streets": ["Hüttentalstraße"], "city": "Kreuztal", "vmax": [100], "first_seen": "", "last_seen": "September 2026", "months": {"Dezember 2025": 0, "Januar 2026": 0, "Februar 2026": 0, "März 2026": 1, "April 2026": 1, "Mai 2026": 0, "Juni 2026": 0, "Juli 2026": 0, "August 2026": 0, "September 2026": 1, "Oktober 2026": 0, "November 2026": 1}, "source": "ort", "url": "https://www.blitzer.de/detail/mobile-messstelle-in-Kreuztal,H%C3%BCttentalstra%C3%9Fe/75316a30-7670-7031-376c-61746e657474"}, {"lat": 50.879346, "lng": 8.03858, "reports": 8, "distinct_reports": 0, "days": 8, "street": "Bürbacher Weg", "streets": ["Bürbacher Weg"], "city": "Siegen", "vmax": [50], "first_seen": "", "last_seen": "Juli 2026", "months": {"Dezember 2025": 0, "Januar 2026": 0, "Februar 2026": 0, "März 2026": 3, "April 2026": 0, "Mai 2026": 1, "Juni 2026": 0, "Juli 2026": 0, "August 2026": 1, "September 2026": 0, "Oktober 2026": 1, "November 2026": 1}, "source": "ort", "url": "https://www.blitzer.de/detail/mobile-messstelle-in-Siegen,B%C3%BCrbacher+Weg/75316a30-7179-6d31-3472-656863616272"}, {"lat": 50.905631, "lng": 7.990344, "reports": 8, "distinct_reports": 0, "days": 8, "street": "Olper Straße", "streets": ["Olper Straße"], "city": "Siegen", "vmax": [50], "first_seen": "", "last_seen": "September 2026", "months": {"Dezember 2025": 0, "Januar 2026": 2, "Februar 2026": 0, "März 2026": 0, "April 2026": 0, "Mai 2026": 0, "Juni 2026": 1, "Juli 2026": 0, "August 2026": 3, "September 2026": 0, "Oktober 2026": 0, "November 2026": 0}, "source": "ort", "url": "https://www.blitzer.de/detail/mobile-messstelle-in-Siegen,Olper+Stra%C3%9Fe/00007530-6a39-7467-3431-337265706c4f"}, {"lat": 50.922555, "lng": 7.997231, "reports": 8, "distinct_reports": 0, "days": 8, "street": "Sohlbacher Straße", "streets": ["Sohlbacher Straße"], "city": "Siegen", "vmax": [50], "first_seen": "", "last_seen": "August 2026", "months": {"Dezember 2025": 0, "Januar 2026": 0, "Februar 2026": 0, "März 2026": 3, "April 2026": 0, "Mai 2026": 0, "Juni 2026": 0, "Juli 2026": 0, "August 2026": 0, "September 2026": 0, "Oktober 2026": 0, "November 2026": 0}, "source": "ort", "url": "https://www.blitzer.de/detail/mobile-messstelle-in-Siegen,Sohlbacher+Stra%C3%9Fe/75316a30-7479-7031-3872-65686361626c"}, {"lat": 50.828534, "lng": 8.013947, "reports": 7, "distinct_reports": 0, "days": 7, "street": "Eiserntalstraße", "streets": ["Eiserntalstraße"], "city": "Siegen", "vmax": [60], "first_seen": "", "last_seen": "November 2026", "months": {"Dezember 2025": 0, "Januar 2026": 0, "Februar 2026": 1, "März 2026": 2, "April 2026": 1, "Mai 2026": 1, "Juni 2026": 0, "Juli 2026": 1, "August 2026": 0, "September 2026": 3, "Oktober 2026": 0, "November 2026": 1}, "source": "ort", "url": "https://www.blitzer.de/detail/mobile-messstelle-in-Siegen,Eiserntalstra%C3%9Fe/75316a30-6e6d-3531-366c-61746e726573"}, {"lat": 50.877965, "lng": 8.036478, "reports": 7, "distinct_reports": 0, "days": 7, "street": "Brüderweg", "streets": ["Brüderweg"], "city": "Siegen", "vmax": [30], "first_seen": "", "last_seen": "November 2026", "months": {"Dezember 2025": 0, "Januar 2026": 0, "Februar 2026": 0, "März 2026": 0, "April 2026": 1, "Mai 2026": 0, "Juni 2026": 4, "Juli 2026": 3, "August 2026": 0, "September 2026": 0, "Oktober 2026": 0, "November 2026": 0}, "source": "ort", "url": "https://www.blitzer.de/detail/mobile-messstelle-in-Siegen,Br%C3%BCderweg/75316a30-7179-3531-3072-6564bcc37242"}, {"lat": 50.844552, "lng": 8.042014, "reports": 7, "distinct_reports": 0, "days": 7, "street": "Leimbachstraße", "streets": ["Leimbachstraße"], "city": "Siegen", "vmax": [70], "first_seen": "", "last_seen": "Oktober 2026", "months": {"Dezember 2025": 0, "Januar 2026": 0, "Februar 2026": 0, "März 2026": 0, "April 2026": 0, "Mai 2026": 0, "Juni 2026": 1, "Juli 2026": 2, "August 2026": 0, "September 2026": 3, "Oktober 2026": 1, "November 2026": 0}, "source": "ort", "url": "https://www.blitzer.de/detail/mobile-messstelle-in-Siegen,Leimbachstra%C3%9Fe/75316a30-7070-6231-3568-6361626d6965"}, {"lat": 50.84737, "lng": 8.04049, "reports": 7, "distinct_reports": 0, "days": 7, "street": "Leimbachstraße", "streets": ["Leimbachstraße"], "city": "Siegen", "vmax": [70], "first_seen": "", "last_seen": "Oktober 2026", "months": {"Dezember 2025": 0, "Januar 2026": 0, "Februar 2026": 0, "März 2026": 0, "April 2026": 1, "Mai 2026": 0, "Juni 2026": 2, "Juli 2026": 0, "August 2026": 0, "September 2026": 3, "Oktober 2026": 1, "November 2026": 0}, "source": "ort", "url": "https://www.blitzer.de/detail/mobile-messstelle-in-Siegen,Leimbachstra%C3%9Fe/75316a30-7162-7131-3568-6361626d6965"}, {"lat": 50.827382, "lng": 8.045146, "reports": 7, "distinct_reports": 0, "days": 7, "street": "Eiserntalstraße", "streets": ["Eiserntalstraße"], "city": "Siegen", "vmax": [40], "first_seen": "", "last_seen": "Oktober 2026", "months": {"Dezember 2025": 0, "Januar 2026": 1, "Februar 2026": 0, "März 2026": 0, "April 2026": 0, "Mai 2026": 0, "Juni 2026": 2, "Juli 2026": 0, "August 2026": 0, "September 2026": 2, "Oktober 2026": 0, "November 2026": 0}, "source": "ort", "url": "https://www.blitzer.de/detail/mobile-messstelle-in-Siegen,Eiserntalstra%C3%9Fe/75316a30-7068-6631-366c-61746e726573"}, {"lat": 50.894669, "lng": 8.02474, "reports": 7, "distinct_reports": 0, "days": 7, "street": "Bismarckstraße", "streets": ["Bismarckstraße"], "city": "Siegen", "vmax": [30], "first_seen": "", "last_seen": "September 2026", "months": {"Dezember 2025": 0, "Januar 2026": 0, "Februar 2026": 0, "März 2026": 0, "April 2026": 0, "Mai 2026": 0, "Juni 2026": 0, "Juli 2026": 0, "August 2026": 0, "September 2026": 0, "Oktober 2026": 2, "November 2026": 1}, "source": "ort", "url": "https://www.blitzer.de/detail/mobile-messstelle-in-Siegen,Bismarckstra%C3%9Fe/033bb5e0-8a62-e51b-98f2-466a30b12928"}, {"lat": 50.90992, "lng": 8.013647, "reports": 7, "distinct_reports": 0, "days": 7, "street": "Geisweider Straße", "streets": ["Geisweider Straße"], "city": "Siegen", "vmax": [50], "first_seen": "", "last_seen": "November 2026", "months": {"Dezember 2025": 1, "Januar 2026": 0, "Februar 2026": 0, "März 2026": 4, "April 2026": 2, "Mai 2026": 2, "Juni 2026": 1, "Juli 2026": 0, "August 2026": 1, "September 2026": 1, "Oktober 2026": 0, "November 2026": 2}, "source": "ort", "url": "https://www.blitzer.de/detail/mobile-messstelle-in-Siegen,Geisweider+Stra%C3%9Fe/75316a30-7737-6731-3872-656469657773"}, {"lat": 50.828222, "lng": 8.001094, "reports": 7, "distinct_reports": 0, "days": 7, "street": "Freiengründer Straße", "streets": ["Freiengründer Straße"], "city": "Siegen", "vmax": [30], "first_seen": "", "last_seen": "November 2026", "months": {"Dezember 2025": 0, "Januar 2026": 0, "Februar 2026": 0, "März 2026": 4, "April 2026": 0, "Mai 2026": 0, "Juni 2026": 0, "Juli 2026": 0, "August 2026": 0, "September 2026": 4, "Oktober 2026": 0, "November 2026": 0}, "source": "ort", "url": "https://www.blitzer.de/detail/mobile-messstelle-in-Siegen,Freiengr%C3%BCnder+Stra%C3%9Fe/75316a30-6e68-6632-3272-65646ebcc372"}, {"lat": 50.887333, "lng": 7.958651, "reports": 7, "distinct_reports": 0, "days": 7, "street": "Freudenberger Straße", "streets": ["Freudenberger Straße"], "city": "Siegen", "vmax": [70], "first_seen": "", "last_seen": "Oktober 2026", "months": {"Dezember 2025": 0, "Januar 2026": 0, "Februar 2026": 0, "März 2026": 0, "April 2026": 0, "Mai 2026": 0, "Juni 2026": 0, "Juli 2026": 0, "August 2026": 3, "September 2026": 1, "Oktober 2026": 0, "November 2026": 1}, "source": "ort", "url": "https://www.blitzer.de/detail/mobile-messstelle-in-Siegen,Freudenberger+Stra%C3%9Fe/75316a30-6d70-6732-3172-65677265626e"}, {"lat": 50.877139, "lng": 8.106301, "reports": 7, "distinct_reports": 0, "days": 7, "street": "Deuzer Straße", "streets": ["Deuzer Straße"], "city": "Siegen", "vmax": [30], "first_seen": "", "last_seen": "August 2026", "months": {"Dezember 2025": 0, "Januar 2026": 0, "Februar 2026": 0, "März 2026": 2, "April 2026": 1, "Mai 2026": 0, "Juni 2026": 0, "Juli 2026": 1, "August 2026": 1, "September 2026": 0, "Oktober 2026": 0, "November 2026": 0}, "source": "ort", "url": "https://www.blitzer.de/detail/mobile-messstelle-in-Siegen,Deuzer+Stra%C3%9Fe/00753130-6332-6d79-3134-72657a756544"}, {"lat": 50.877599, "lng": 8.030877, "reports": 6, "distinct_reports": 0, "days": 6, "street": "Kampenstraße", "streets": ["Kampenstraße"], "city": "Siegen", "vmax": [30], "first_seen": "", "last_seen": "September 2026", "months": {"Dezember 2025": 0, "Januar 2026": 1, "Februar 2026": 0, "März 2026": 1, "April 2026": 2, "Mai 2026": 1, "Juni 2026": 1, "Juli 2026": 0, "August 2026": 1, "September 2026": 1, "Oktober 2026": 1, "November 2026": 1}, "source": "ort", "url": "https://www.blitzer.de/detail/mobile-messstelle-in-Siegen,Kampenstra%C3%9Fe/00753130-3971-747a-3133-6e65706d614b"}, {"lat": 50.910488, "lng": 7.992361, "reports": 6, "distinct_reports": 0, "days": 6, "street": "Hofbachstraße", "streets": ["Hofbachstraße"], "city": "Siegen", "vmax": [50], "first_seen": "", "last_seen": "August 2026", "months": {"Dezember 2025": 1, "Januar 2026": 0, "Februar 2026": 0, "März 2026": 0, "April 2026": 1, "Mai 2026": 2, "Juni 2026": 1, "Juli 2026": 0, "August 2026": 0, "September 2026": 0, "Oktober 2026": 0, "November 2026": 0}, "source": "ort", "url": "https://www.blitzer.de/detail/mobile-messstelle-in-Siegen,Hofbachstra%C3%9Fe/75316a30-7467-6731-3468-636162666f48"}, {"lat": 51.00961, "lng": 7.941184, "reports": 6, "distinct_reports": 0, "days": 6, "street": "B54", "streets": ["B54"], "city": "Kreuztal", "vmax": [50], "first_seen": "", "last_seen": "November 2026", "months": {"Dezember 2025": 0, "Januar 2026": 0, "Februar 2026": 0, "März 2026": 0, "April 2026": 3, "Mai 2026": 1, "Juni 2026": 1, "Juli 2026": 0, "August 2026": 0, "September 2026": 0, "Oktober 2026": 1, "November 2026": 0}, "source": "ort", "url": "https://www.blitzer.de/detail/mobile-messstelle-in-Kreuztal,B54/00000030-0075-316a-6468-776e33343542"}, {"lat": 50.912937, "lng": 7.962728, "reports": 6, "distinct_reports": 0, "days": 6, "street": "Olper Straße", "streets": ["Olper Straße"], "city": "Siegen", "vmax": [50], "first_seen": "", "last_seen": "August 2026", "months": {"Dezember 2025": 1, "Januar 2026": 3, "Februar 2026": 1, "März 2026": 1, "April 2026": 1, "Mai 2026": 1, "Juni 2026": 3, "Juli 2026": 1, "August 2026": 1, "September 2026": 0, "Oktober 2026": 0, "November 2026": 0}, "source": "ort", "url": "https://www.blitzer.de/detail/mobile-messstelle-in-Siegen,Olper+Stra%C3%9Fe/00007530-6a39-7468-7131-337265706c4f"}, {"lat": 50.869272, "lng": 8.033345, "reports": 6, "distinct_reports": 0, "days": 6, "street": "Frankfurter Straße", "streets": ["Frankfurter Straße"], "city": "Siegen", "vmax": [30], "first_seen": "", "last_seen": "November 2026", "months": {"Dezember 2025": 0, "Januar 2026": 3, "Februar 2026": 1, "März 2026": 1, "April 2026": 2, "Mai 2026": 1, "Juni 2026": 0, "Juli 2026": 1, "August 2026": 1, "September 2026": 0, "Oktober 2026": 2, "November 2026": 1}, "source": "ort", "url": "https://www.blitzer.de/detail/mobile-messstelle-in-Siegen,Frankfurter+Stra%C3%9Fe/75316a30-7175-3331-3972-65747275666b"}, {"lat": 50.906727, "lng": 7.985601, "reports": 6, "distinct_reports": 0, "days": 6, "street": "Olper Straße", "streets": ["Olper Straße"], "city": "Siegen", "vmax": [50], "first_seen": "", "last_seen": "August 2026", "months": {"Dezember 2025": 0, "Januar 2026": 2, "Februar 2026": 1, "März 2026": 0, "April 2026": 0, "Mai 2026": 1, "Juni 2026": 1, "Juli 2026": 0, "August 2026": 2, "September 2026": 1, "Oktober 2026": 0, "November 2026": 0}, "source": "ort", "url": "https://www.blitzer.de/detail/mobile-messstelle-in-Siegen,Olper+Stra%C3%9Fe/00007530-6a39-7465-7131-337265706c4f"}, {"lat": 50.898066, "lng": 8.055832, "reports": 6, "distinct_reports": 0, "days": 6, "street": "Tiefenbacher Straße", "streets": ["Tiefenbacher Straße"], "city": "Siegen", "vmax": [50], "first_seen": "", "last_seen": "Oktober 2026", "months": {"Dezember 2025": 0, "Januar 2026": 0, "Februar 2026": 2, "März 2026": 0, "April 2026": 0, "Mai 2026": 2, "Juni 2026": 0, "Juli 2026": 0, "August 2026": 0, "September 2026": 0, "Oktober 2026": 0, "November 2026": 0}, "source": "ort", "url": "https://www.blitzer.de/detail/mobile-messstelle-in-Siegen,Tiefenbacher+Stra%C3%9Fe/75316a30-7833-6432-3072-65686361626e"}, {"lat": 50.997782, "lng": 7.95378, "reports": 6, "distinct_reports": 0, "days": 6, "street": "Olper Straße", "streets": ["Olper Straße"], "city": "Kreuztal", "vmax": [30], "first_seen": "", "last_seen": "Oktober 2026", "months": {"Dezember 2025": 1, "Januar 2026": 0, "Februar 2026": 0, "März 2026": 1, "April 2026": 0, "Mai 2026": 0, "Juni 2026": 1, "Juli 2026": 1, "August 2026": 0, "September 2026": 0, "Oktober 2026": 1, "November 2026": 1}, "source": "ort", "url": "https://www.blitzer.de/detail/mobile-messstelle-in-Kreuztal,Olper+Stra%C3%9Fe/00007530-6a64-6867-7a31-337265706c4f"}, {"lat": 50.852775, "lng": 7.992897, "reports": 5, "distinct_reports": 0, "days": 5, "street": "B62", "streets": ["B62"], "city": "Siegen", "vmax": [80], "first_seen": "", "last_seen": "Juli 2026", "months": {"Dezember 2025": 1, "Januar 2026": 1, "Februar 2026": 0, "März 2026": 1, "April 2026": 1, "Mai 2026": 1, "Juni 2026": 1, "Juli 2026": 0, "August 2026": 1, "September 2026": 0, "Oktober 2026": 0, "November 2026": 1}, "source": "ort", "url": "https://www.blitzer.de/detail/mobile-messstelle-in-Siegen,B62/00000030-0075-316a-396d-636b33323642"}, {"lat": 50.861512, "lng": 7.996008, "reports": 5, "distinct_reports": 0, "days": 5, "street": "B62", "streets": ["B62"], "city": "Siegen", "vmax": [30], "first_seen": "", "last_seen": "Juli 2026", "months": {"Dezember 2025": 0, "Januar 2026": 0, "Februar 2026": 0, "März 2026": 0, "April 2026": 1, "Mai 2026": 0, "Juni 2026": 0, "Juli 2026": 1, "August 2026": 6, "September 2026": 0, "Oktober 2026": 0, "November 2026": 1}, "source": "ort", "url": "https://www.blitzer.de/detail/mobile-messstelle-in-Siegen,B62/00000030-0075-316a-396d-676e33323642"}, {"lat": 50.895238, "lng": 8.039074, "reports": 5, "distinct_reports": 0, "days": 5, "street": "Stockweg", "streets": ["Stockweg"], "city": "Siegen", "vmax": [30], "first_seen": "", "last_seen": "Oktober 2026", "months": {"Dezember 2025": 0, "Januar 2026": 0, "Februar 2026": 1, "März 2026": 0, "April 2026": 1, "Mai 2026": 1, "Juni 2026": 1, "Juli 2026": 0, "August 2026": 1, "September 2026": 0, "Oktober 2026": 1, "November 2026": 1}, "source": "ort", "url": "https://www.blitzer.de/detail/mobile-messstelle-in-Siegen,Stockweg/00000030-316a-3977-636a-386b636f7453"}, {"lat": 50.938378, "lng": 7.97586, "reports": 5, "distinct_reports": 0, "days": 5, "street": "Kohlenbergstraße", "streets": ["Kohlenbergstraße"], "city": "Siegen", "vmax": [30], "first_seen": "", "last_seen": "August 2026", "months": {"Dezember 2025": 0, "Januar 2026": 0, "Februar 2026": 0, "März 2026": 0, "April 2026": 0, "Mai 2026": 0, "Juni 2026": 0, "Juli 2026": 0, "August 2026": 0, "September 2026": 0, "Oktober 2026": 5, "November 2026": 0}, "source": "ort", "url": "https://www.blitzer.de/detail/mobile-messstelle-in-Siegen,Kohlenbergstra%C3%9Fe/21edc578-7ae5-950c-6f94-38e1d23ddb80"}, {"lat": 50.856852, "lng": 8.00442, "reports": 5, "distinct_reports": 0, "days": 5, "street": "B62", "streets": ["B62"], "city": "Siegen", "vmax": [50], "first_seen": "", "last_seen": "Juli 2026", "months": {"Dezember 2025": 0, "Januar 2026": 0, "Februar 2026": 0, "März 2026": 0, "April 2026": 0, "Mai 2026": 0, "Juni 2026": 0, "Juli 2026": 0, "August 2026": 0, "September 2026": 0, "Oktober 2026": 2, "November 2026": 1}, "source": "ort", "url": "https://www.blitzer.de/detail/mobile-messstelle-in-Siegen,B62/9ae13641-49bf-a343-706e-75ce0862dbce"}, {"lat": 50.94645, "lng": 7.949145, "reports": 5, "distinct_reports": 0, "days": 5, "street": "Heesstraße", "streets": ["Heesstraße"], "city": "Kreuztal", "vmax": [30], "first_seen": "", "last_seen": "Oktober 2026", "months": {"Dezember 2025": 1, "Januar 2026": 1, "Februar 2026": 0, "März 2026": 1, "April 2026": 0, "Mai 2026": 2, "Juni 2026": 0, "Juli 2026": 1, "August 2026": 0, "September 2026": 1, "Oktober 2026": 2, "November 2026": 1}, "source": "ort", "url": "https://www.blitzer.de/detail/mobile-messstelle-in-Kreuztal,Heesstra%C3%9Fe/00000030-316a-3975-6673-313173656548"}, {"lat": 50.954439, "lng": 7.967491, "reports": 5, "distinct_reports": 0, "days": 5, "street": "Heesstraße", "streets": ["Heesstraße"], "city": "Kreuztal", "vmax": [50], "first_seen": "", "last_seen": "November 2026", "months": {"Dezember 2025": 0, "Januar 2026": 2, "Februar 2026": 1, "März 2026": 2, "April 2026": 0, "Mai 2026": 1, "Juni 2026": 0, "Juli 2026": 0, "August 2026": 0, "September 2026": 2, "Oktober 2026": 0, "November 2026": 0}, "source": "ort", "url": "https://www.blitzer.de/detail/mobile-messstelle-in-Kreuztal,Heesstra%C3%9Fe/00000030-316a-3976-3763-313173656548"}, {"lat": 50.888822, "lng": 7.946055, "reports": 5, "distinct_reports": 0, "days": 5, "street": "Freudenberger Straße", "streets": ["Freudenberger Straße"], "city": "Siegen", "vmax": [50], "first_seen": "", "last_seen": "November 2026", "months": {"Dezember 2025": 1, "Januar 2026": 0, "Februar 2026": 0, "März 2026": 0, "April 2026": 0, "Mai 2026": 1, "Juni 2026": 1, "Juli 2026": 1, "August 2026": 1, "September 2026": 1, "Oktober 2026": 1, "November 2026": 0}, "source": "ort", "url": "https://www.blitzer.de/detail/mobile-messstelle-in-Siegen,Freudenberger+Stra%C3%9Fe/75316a30-7362-3432-3172-65677265626e"}, {"lat": 50.878669, "lng": 8.112438, "reports": 5, "distinct_reports": 0, "days": 5, "street": "Deuzer Straße", "streets": ["Deuzer Straße"], "city": "Siegen", "vmax": [50], "first_seen": "", "last_seen": "August 2026", "months": {"Dezember 2025": 1, "Januar 2026": 0, "Februar 2026": 0, "März 2026": 2, "April 2026": 1, "Mai 2026": 0, "Juni 2026": 1, "Juli 2026": 1, "August 2026": 1, "September 2026": 0, "Oktober 2026": 0, "November 2026": 0}, "source": "ort", "url": "https://www.blitzer.de/detail/mobile-messstelle-in-Siegen,Deuzer+Stra%C3%9Fe/00753130-6332-7735-3134-72657a756544"}, {"lat": 50.872007, "lng": 8.007424, "reports": 4, "distinct_reports": 0, "days": 4, "street": "Ziegenbergtunnel", "streets": ["Ziegenbergtunnel"], "city": "Siegen", "vmax": [80], "first_seen": "", "last_seen": "Oktober 2026", "months": {"Dezember 2025": 1, "Januar 2026": 0, "Februar 2026": 1, "März 2026": 0, "April 2026": 0, "Mai 2026": 0, "Juni 2026": 0, "Juli 2026": 0, "August 2026": 5, "September 2026": 2, "Oktober 2026": 1, "November 2026": 0}, "source": "ort", "url": "https://www.blitzer.de/detail/mobile-messstelle-in-Siegen,Ziegenbergtunnel/75316a30-7168-7931-366c-656e6e757467"}, {"lat": 50.890758, "lng": 8.059845, "reports": 4, "distinct_reports": 0, "days": 4, "street": "Obere Dorfstraße", "streets": ["Obere Dorfstraße"], "city": "Siegen", "vmax": [30], "first_seen": "", "last_seen": "Mai 2026", "months": {"Dezember 2025": 0, "Januar 2026": 1, "Februar 2026": 0, "März 2026": 1, "April 2026": 0, "Mai 2026": 0, "Juni 2026": 0, "Juli 2026": 1, "August 2026": 0, "September 2026": 1, "Oktober 2026": 2, "November 2026": 0}, "source": "ort", "url": "https://www.blitzer.de/detail/mobile-messstelle-in-Siegen,Obere+Dorfstra%C3%9Fe/75316a30-7832-6d31-3766-726f44206572"}, {"lat": 50.916238, "lng": 8.000729, "reports": 4, "distinct_reports": 1, "days": 3, "street": "Sohlbacher Straße", "streets": ["Sohlbacher Straße"], "city": "Siegen", "vmax": [40], "first_seen": "", "last_seen": "März 2026", "months": {"Dezember 2025": 1, "Januar 2026": 0, "Februar 2026": 1, "März 2026": 1, "April 2026": 2, "Mai 2026": 0, "Juni 2026": 0, "Juli 2026": 1, "August 2026": 2, "September 2026": 0, "Oktober 2026": 0, "November 2026": 0}, "source": "ort", "url": "https://www.blitzer.de/detail/mobile-messstelle-in-Siegen,Sohlbacher+Stra%C3%9Fe/75316a30-776a-3131-3872-65686361626c", "live": true}, {"lat": 50.851393, "lng": 8.020535, "reports": 3, "distinct_reports": 0, "days": 3, "street": "Wichernstraße", "streets": ["Wichernstraße"], "city": "Siegen", "vmax": [30], "first_seen": "", "last_seen": "November 2026", "months": {"Dezember 2025": 0, "Januar 2026": 3, "Februar 2026": 1, "März 2026": 3, "April 2026": 0, "Mai 2026": 1, "Juni 2026": 2, "Juli 2026": 0, "August 2026": 0, "September 2026": 0, "Oktober 2026": 2, "November 2026": 0}, "source": "ort", "url": "https://www.blitzer.de/detail/mobile-messstelle-in-Siegen,Wichernstra%C3%9Fe/75316a30-7139-3031-346e-726568636957"}, {"lat": 50.863286, "lng": 8.003905, "reports": 3, "distinct_reports": 0, "days": 3, "street": "Wallhausenstraße", "streets": ["Wallhausenstraße"], "city": "Siegen", "vmax": [50], "first_seen": "", "last_seen": "November 2026", "months": {"Dezember 2025": 0, "Januar 2026": 0, "Februar 2026": 0, "März 2026": 2, "April 2026": 0, "Mai 2026": 3, "Juni 2026": 1, "Juli 2026": 0, "August 2026": 3, "September 2026": 0, "Oktober 2026": 0, "November 2026": 0}, "source": "ort", "url": "https://www.blitzer.de/detail/mobile-messstelle-in-Siegen,Wallhausenstra%C3%9Fe/75316a30-7135-6b31-376e-65737561686c"}, {"lat": 50.854997, "lng": 7.998755, "reports": 3, "distinct_reports": 0, "days": 3, "street": "B62", "streets": ["B62"], "city": "Siegen", "vmax": [100], "first_seen": "", "last_seen": "November 2026", "months": {"Dezember 2025": 1, "Januar 2026": 0, "Februar 2026": 0, "März 2026": 1, "April 2026": 0, "Mai 2026": 1, "Juni 2026": 0, "Juli 2026": 1, "August 2026": 0, "September 2026": 0, "Oktober 2026": 0, "November 2026": 0}, "source": "ort", "url": "https://www.blitzer.de/detail/mobile-messstelle-in-Siegen,B62/00000030-0075-316a-3971-316233323642"}, {"lat": 50.860713, "lng": 8.012273, "reports": 3, "distinct_reports": 0, "days": 3, "street": "Eiserfelder Straße", "streets": ["Eiserfelder Straße"], "city": "Siegen", "vmax": [50], "first_seen": "", "last_seen": "November 2026", "months": {"Dezember 2025": 0, "Januar 2026": 1, "Februar 2026": 0, "März 2026": 0, "April 2026": 2, "Mai 2026": 1, "Juni 2026": 0, "Juli 2026": 4, "August 2026": 0, "September 2026": 3, "Oktober 2026": 0, "November 2026": 0}, "source": "ort", "url": "https://www.blitzer.de/detail/mobile-messstelle-in-Siegen,Eiserfelder+Stra%C3%9Fe/75316a30-7136-6631-3972-65646c656672"}, {"lat": 50.932834, "lng": 7.998476, "reports": 3, "distinct_reports": 0, "days": 3, "street": "Im Gensterfeld", "streets": ["Im Gensterfeld"], "city": "Siegen", "vmax": [30], "first_seen": "", "last_seen": "März 2026", "months": {"Dezember 2025": 0, "Januar 2026": 0, "Februar 2026": 0, "März 2026": 0, "April 2026": 0, "Mai 2026": 0, "Juni 2026": 0, "Juli 2026": 2, "August 2026": 3, "September 2026": 0, "Oktober 2026": 0, "November 2026": 0}, "source": "ort", "url": "https://www.blitzer.de/detail/mobile-messstelle-in-Siegen,Im+Gensterfeld/75316a30-7930-3031-3464-6c6566726574"}, {"lat": 50.897487, "lng": 8.027181, "reports": 1, "distinct_reports": 1, "days": 1, "street": "Münkershütten", "streets": ["Münkershütten"], "city": "Siegen", "vmax": [50], "first_seen": "2026-11-13 23:16:23", "last_seen": "2026-11-13 23:16:23", "source": "live", "months": {}}, {"lat": 50.898406, "lng": 8.052156, "reports": 1, "distinct_reports": 1, "days": 1, "street": "Am Kornberg", "streets": ["Am Kornberg"], "city": "Siegen", "vmax": [30], "first_seen": "2026-11-13 23:16:23", "last_seen": "2026-11-13 23:16:23", "source": "live", "months": {}}];
 const COLOURS = {4:'#ff4d4f',3:'#ff9f43',2:'#ffd166',1:'#3ad29f'};
 const COLOUR_RGB = {4:[255,77,79],3:[255,159,67],2:[255,209,102],1:[58,210,159]};
 
-const state = { filter:'all', query:'', pos:null, sortByDistance:false };
+const state = { filter:'all', query:'', pos:null, sortByDistance:false,
+                following:false, watchId:null };
 
 /* ---------- helpers ---------- */
 const $ = s => document.querySelector(s);
@@ -245,7 +289,23 @@ function fmtDist(m){
   if(m<950) return Math.round(m/10)*10 + ' m';
   return (m/1000).toFixed(m<10000?1:0) + ' km';
 }
-function sev(s){ return s.severity || 1; }
+// heat is derived from the Messtage count, not from a stored field
+function sev(s){
+  const d = s.days || 0;
+  return d >= 10 ? 4 : d >= 5 ? 3 : d >= 2 ? 2 : 1;
+}
+function shortMonth(s){
+  const map = {Januar:'Jan',Februar:'Feb',März:'Mär',April:'Apr',Mai:'Mai',Juni:'Jun',
+               Juli:'Jul',August:'Aug',September:'Sep',Oktober:'Okt',November:'Nov',Dezember:'Dez'};
+  return (s||'').replace(/^([A-Za-zÄÖÜäöüß]+)/, m => map[m] || m);
+}
+let toastTimer = null;
+function toast(msg, ms=2600){
+  const el = $('#toast');
+  el.textContent = msg; el.classList.add('on');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.classList.remove('on'), ms);
+}
 function isRecent(s){
   if(!s.last_seen) return false;
   const now = new Date();
@@ -273,11 +333,31 @@ function passes(s){
 
 /* ---------- map ---------- */
 const map = L.map('map', {zoomControl:false, attributionControl:true}).setView([50.87,8.02], 11);
-L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-  maxZoom: 19, subdomains:'abcd',
-  attribution:'&copy; OpenStreetMap &copy; CARTO'
-}).addTo(map);
-L.control.zoom({position:'bottomright'}).addTo(map);
+
+// Esri's dark canvas needs no API key and allows direct tile use.
+// If those tiles ever fail, OSM is the fallback so the map is never blank.
+const dark = L.tileLayer(
+  'https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}',
+  {maxZoom:19, attribution:'&copy; Esri, HERE, Garmin, OpenStreetMap'}
+).addTo(map);
+L.tileLayer(
+  'https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Reference/MapServer/tile/{z}/{y}/{x}',
+  {maxZoom:19, pane:'overlayPane', opacity:.9}
+).addTo(map);
+let tileErrors = 0;
+dark.on('tileerror', () => {
+  if(++tileErrors === 6){
+    map.removeLayer(dark);
+    L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+      {maxZoom:19, attribution:'&copy; OpenStreetMap'}).addTo(map);
+    toast('Kartenkacheln: OSM-Fallback aktiv');
+  }
+});
+L.control.zoom({position:'bottomleft'}).addTo(map);
+setTimeout(() => {
+  const zc = document.querySelector('.leaflet-control-zoom');
+  if(zc) zc.style.display = 'none';   // pinch + the FABs are enough on a phone
+}, 0);
 
 const layer = L.layerGroup().addTo(map);
 function drawMap(){
@@ -295,7 +375,7 @@ function drawMap(){
       className:'pinlabel', opacity:0});
     layer.addLayer(m);
   }
-  if(rows.length){
+  if(rows.length && !state.following && !state.pos){
     map.fitBounds(rows.map(s=>[s.lat,s.lng]), {padding:[46,46], maxZoom:13});
   }
 }
@@ -343,8 +423,8 @@ function openSheet(s){
   $('#sh-days').textContent = s.days || '–';
   $('#sh-days').style.color = c;
   $('#sh-vmax').textContent = (s.vmax && s.vmax.length) ? s.vmax[0] : '–';
-  $('#sh-last').textContent = s.last_seen || '–';
-  $('#sh-last').style.fontSize = '15px';
+  $('#sh-last').textContent = shortMonth(s.last_seen) || '–';
+  $('#sh-last').style.fontSize = '17px';
 
   const months = s.months || {};
   const keys = Object.keys(months);
@@ -409,20 +489,85 @@ $('#q').addEventListener('input', e => {
   drawMap(); renderList();
 });
 
-/* ---------- geolocation ---------- */
-$('#geo').addEventListener('click', () => {
-  if(!navigator.geolocation){ $('#geotxt').textContent = 'n/a'; return; }
-  $('#geotxt').textContent = '…';
-  navigator.geolocation.getCurrentPosition(pos => {
-    state.pos = [pos.coords.latitude, pos.coords.longitude];
-    $('#geo').dataset.on = '1';
-    $('#geotxt').textContent = 'Nähe an';
-    map.setView(state.pos, 14);
+/* ---------- geolocation: locate once + continuous follow ---------- */
+const meLayer = L.layerGroup().addTo(map);
+let meMarker = null, meCircle = null;
+
+function secureCheck(){
+  if(window.isSecureContext) return true;
+  $('#warn').textContent = 'Standort braucht HTTPS. Öffne die Seite über ihre https://-Adresse (GitHub Pages), nicht als lokale Datei.';
+  $('#warn').classList.add('on');
+  return false;
+}
+
+function paintMe(latlng, accuracy){
+  const icon = L.divIcon({
+    className:'', html:'<div class="me"><div class="me__pulse"></div><div class="me__dot"></div></div>',
+    iconSize:[16,16], iconAnchor:[8,8]
+  });
+  if(!meMarker){
+    meMarker = L.marker(latlng, {icon, interactive:false, zIndexOffset:1000}).addTo(meLayer);
+  } else {
+    meMarker.setLatLng(latlng);
+  }
+  if(accuracy != null){
+    if(!meCircle){
+      meCircle = L.circle(latlng, {radius:accuracy, color:'#2f7cf6', weight:1,
+        fillColor:'#2f7cf6', fillOpacity:.08, interactive:false}).addTo(meLayer);
+    } else {
+      meCircle.setLatLng(latlng); meCircle.setRadius(accuracy);
+    }
+  }
+}
+
+function setFollow(on){
+  state.following = on;
+  $('#fabFollow').classList.toggle('on', on);
+  $('#geo').dataset.on = on ? '1' : '0';
+  $('#geotxt').textContent = on ? 'Folgen' : 'Nähe';
+}
+
+function startFollow(){
+  if(!secureCheck()) return;
+  if(!navigator.geolocation){ toast('Dieser Browser gibt keinen Standort her'); return; }
+  if(state.following){ setFollow(false); return; }
+
+  setFollow(true);
+  toast('Standort wird gesucht …');
+
+  if(state.watchId != null) navigator.geolocation.clearWatch(state.watchId);
+  state.watchId = navigator.geolocation.watchPosition(pos => {
+    const ll = [pos.coords.latitude, pos.coords.longitude];
+    state.pos = ll;
+    paintMe(ll, pos.coords.accuracy);
+    if(state.following) map.setView(ll, Math.max(map.getZoom(), 15), {animate:true});
     drawMap(); renderList();
-  }, () => {
-    $('#geotxt').textContent = 'verweigert';
-  }, {enableHighAccuracy:true, timeout:12000, maximumAge:30000});
+  }, err => {
+    setFollow(false);
+    const msg = err.code === 1
+      ? 'Standort verweigert — in Safari unter Einstellungen → Websites → Standort erlauben.'
+      : err.code === 3 ? 'Standort-Timeout, nochmal tippen.'
+      : 'Standort nicht verfügbar.';
+    toast(msg, 4000);
+  }, {enableHighAccuracy:true, maximumAge:5000, timeout:15000});
+}
+
+$('#fabFollow').addEventListener('click', startFollow);
+
+$('#fabZoom').addEventListener('click', () => {
+  if(!secureCheck()) return;
+  toast('Standort wird gesucht …');
+  navigator.geolocation.getCurrentPosition(pos => {
+    const ll = [pos.coords.latitude, pos.coords.longitude];
+    state.pos = ll;
+    paintMe(ll, pos.coords.accuracy);
+    map.setView(ll, 16);
+    drawMap(); renderList();
+  }, () => toast('Standort nicht verfügbar', 3000),
+     {enableHighAccuracy:true, timeout:12000, maximumAge:20000});
 });
+
+$('#geo').addEventListener('click', startFollow);
 
 /* ---------- boot ---------- */
 drawMap();
