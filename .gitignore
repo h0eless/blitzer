@@ -1,0 +1,13 @@
+# generated / local only
+__pycache__/
+*.pyc
+hotspots_out/
+
+# the phone app is blitzer_app.html; index.html is an old 64 kB build
+index.html
+
+# unrelated local scratch, not part of this project
+dhl_label/
+retouch.py
+page3_chars.txt
+pdf_text.txt
