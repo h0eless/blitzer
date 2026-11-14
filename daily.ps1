@@ -39,6 +39,9 @@ Write-Host "`n== app ==" -ForegroundColor Cyan
 python make_app.py --title "Blitzer Siegen" --orte $orte
 if ($LASTEXITCODE -ne 0) { throw "app build failed" }
 
+# GitHub Pages serves index.html at the repo root, so keep it in sync
+Copy-Item (Join-Path $root "blitzer_app.html") (Join-Path $root "index.html") -Force
+
 Write-Host "`n== neu im Archiv ==" -ForegroundColor Cyan
 python mobile_hotspots.py new --days 7
 

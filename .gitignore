@@ -3,8 +3,8 @@ __pycache__/
 *.pyc
 hotspots_out/
 
-# the phone app is blitzer_app.html; index.html is an old 64 kB build
-index.html
+# local build artefact; index.html is the published copy
+blitzer_app.html
 
 # unrelated local scratch, not part of this project
 dhl_label/
