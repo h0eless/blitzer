@@ -28,18 +28,10 @@ python make_app.py --title "Blitzer Siegen" --orte "Siegen, Kreuztal, Netphen, H
 powershell -ExecutionPolicy Bypass -File .\daily.ps1
 ```
 
-Upload `blitzer_app.html` as `index.html` to any static host (GitHub Pages,
-Netlify) and add it to the home screen once.
-
-This repo is set up the same way: GitHub Pages serves `index.html` from `main`
-at <https://h0eless.github.io/blitzer/>. `daily.ps1` writes the build to
-`blitzer_app.html` and copies it over `index.html`, so publishing is one push:
-
-```powershell
-git add index.html
-git commit -m "Daily update"
-git push
-```
+GitHub Pages serves `index.html` from `main` at
+<https://h0eless.github.io/blitzer/> — add that to the iPhone home screen once.
+`daily.ps1` rebuilds the file, commits it and pushes it, so the page updates by
+itself; no upload step.
 
 ## What the app shows
 
@@ -86,19 +78,34 @@ python mobile_hotspots.py export                       # rebuild exports from th
 Flags: `--orte "A-Land,B-Land"`, `--bbox sw,sw,ne,ne`, `--no-fixed`,
 `--reseed` (treat current inventory as Bestand), `--db`, `--out`.
 
-## Daily run
+## Daily run (fully automatic)
 
-`daily.ps1` scrapes all towns, samples the live feed, rebuilds the app and
-prints what is new. Register it once:
+`daily.ps1` does everything: scrape all towns, sample the live feed, rebuild the
+app, copy it to `index.html`, commit `index.html` + `hotspots.sqlite3`, push to
+GitHub Pages, and log the result.
+
+Register it once:
 
 ```powershell
-schtasks /Create /TN "Blitzer Archiv" /SC DAILY /ST 07:00 /TR 'powershell -WindowStyle Hidden -ExecutionPolicy Bypass -File "C:\Users\vladi\Documents\Standardprojekt\daily.ps1"'
+powershell -ExecutionPolicy Bypass -File .\install_task.ps1
 ```
 
-The script only rebuilds the files locally — commit and push `index.html` after
-it to update the phone.
+That creates the task **Blitzer Archiv** with two triggers (07:00 and 16:00),
+`StartWhenAvailable` (a missed run happens when the PC comes back), and one-hour
+timeout. Check or remove it:
 
-For fresher "live" pins during the day, run the watcher in a second window:
+```powershell
+Get-ScheduledTaskInfo -TaskName "Blitzer Archiv"
+Unregister-ScheduledTask -TaskName "Blitzer Archiv" -Confirm:$false
+```
+
+Every run appends to `logs\daily-YYYY-MM.log`. Publishing is best effort: if the
+network or GitHub is down, the local archive is still updated and the next run
+pushes everything. The phone at <https://h0eless.github.io/blitzer/> updates
+itself after the push (hard-refresh Safari if it still shows the old build).
+
+For fresher "live" pins during the day, the 16:00 run covers the afternoon
+commute; more often means running the watcher by hand:
 
 ```powershell
 python mobile_hotspots.py watch --interval 900 --auto-export
@@ -113,6 +120,8 @@ python mobile_hotspots.py watch --interval 900 --auto-export
 | `blitzer_app.html` | local build output (ignored by git) |
 | `index.html` | the published app — this is what GitHub Pages serves |
 | `hotspots.sqlite3` | archive: `webspots`, `sightings`, `sighting_days`, `meta` |
-| `daily.ps1` | daily scrape + rebuild + "new" report |
+| `daily.ps1` | scrape + rebuild + publish + log, runs from Task Scheduler |
+| `install_task.ps1` | registers the 07:00 / 16:00 task once |
+| `logs/` | one log per month, appended by `daily.ps1` (ignored by git) |
 | `hotspots_out/` | generated GeoJSON / KML / GPX / Leaflet page |
 | `siegen-hotspots/` | the first PowerShell prototype of the same idea |

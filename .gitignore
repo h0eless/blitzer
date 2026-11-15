@@ -2,6 +2,7 @@
 __pycache__/
 *.pyc
 hotspots_out/
+logs/
 
 # local build artefact; index.html is the published copy
 blitzer_app.html
