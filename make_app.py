@@ -682,8 +682,8 @@ function cardHTML(s, opts){
   let tag = '';
   if(opts.showTag){
     if(live) tag = '<span class="tag live">LIVE</span>';
-    else if(isNew(s)) tag = '<span class="tag new">NEU</span>';
     else if(!s.active) tag = '<span class="tag gone">ARCHIV</span>';
+    else if(isNew(s)) tag = '<span class="tag new">NEU</span>';
     else tag = '<span class="tag base">BESTAND</span>';
   }
   const signCls = fixed ? ' is-fixed' : live ? ' is-live' : '';

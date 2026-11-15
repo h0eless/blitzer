@@ -1110,35 +1110,34 @@ if (sites.length) {
 def report_new(conn, days=30):
     """List spots the archive learned about recently.
 
+    Uses the same merged view the app shows, so the daily log and the "Neu" tab
+    agree: town-page spots plus live-only spots that never hit a town page.
     `seeded_at` is the moment the archive was created. Anything first seen
     after it is genuinely new; rows from the initial import are Bestand.
     """
     seeded = meta_get(conn, "seeded_at") or ""
-    order = "first_seen DESC, street"
+    sites = build_sites(conn)
     if days and days > 0:
         cutoff = datetime.now(timezone.utc).timestamp() - days * 86400
         cutoff_iso = datetime.fromtimestamp(cutoff, timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
-        rows = conn.execute(
-            f"SELECT url, kind, street, city, days, vmax, first_seen, active, art "
-            f"FROM webspots WHERE first_seen >= ? ORDER BY {order}",
-            (cutoff_iso,),
-        ).fetchall()
-    else:
-        rows = conn.execute(
-            f"SELECT url, kind, street, city, days, vmax, first_seen, active, art "
-            f"FROM webspots ORDER BY {order}"
-        ).fetchall()
+        sites = [s for s in sites if s["first_seen"] >= cutoff_iso]
 
-    fresh = [r for r in rows if r[6] > seeded] if seeded else rows
-    base = len(rows) - len(fresh)
+    fresh = [s for s in sites if not seeded or s["first_seen"] > seeded]
+    fresh.sort(key=lambda s: s["first_seen"], reverse=True)
+    base = len(sites) - len(fresh)
     print(f"Archiv seit {seeded[:16] or '?'}  |  Fenster: {days or 'alles'} Tag(e)")
-    print(f"{len(rows)} Stelle(n) im Fenster, davon {len(fresh)} neu, {base} Bestand\n")
-    for url, kind, street, city, d, vmax, first, active, art in fresh[:200]:
-        tag = "FEST" if kind == "fixed" else f"{d or 0:>2}d"
-        state = "" if active else "  [nicht mehr gelistet]"
-        label = ", ".join(filter(None, [street, city])) or url
-        extra = art or (f"{vmax} km/h" if vmax else "")
-        print(f"  NEU {first[:10]}  {tag:<6} {label:<44} {extra}{state}")
+    print(f"{len(sites)} Stelle(n) im Fenster, davon {len(fresh)} neu, {base} Bestand\n")
+    for s in fresh[:200]:
+        tag = "FEST" if s.get("kind") == "fixed" else f"{s['days'] or 0:>2}d"
+        state = ""
+        if not s.get("active", True):
+            state = "  [nicht mehr gelistet]"
+        elif s.get("live"):
+            state = "  [live]"
+        label = ", ".join(filter(None, [s["street"], s["city"]])) or \
+            f"{s['lat']:.4f},{s['lng']:.4f}"
+        extra = s.get("art") or (f"{s['vmax'][0]} km/h" if s.get("vmax") else "")
+        print(f"  NEU {s['first_seen'][:10]}  {tag:<6} {label:<44} {extra}{state}")
     if len(fresh) > 200:
         print(f"  … {len(fresh) - 200} weitere")
     return len(fresh)
@@ -1280,16 +1279,15 @@ def main(argv=None):
             "SELECT COUNT(*) FROM webspots WHERE active=0"
         ).fetchone()[0]
         seeded = meta_get(conn, "seeded_at") or "-"
-        fresh = conn.execute(
-            "SELECT COUNT(*) FROM webspots WHERE first_seen > ?", (seeded,)
-        ).fetchone()[0]
+        merged = build_sites(conn)
+        fresh = sum(1 for s in merged if seeded != "-" and s["first_seen"] > seeded)
         days = conn.execute("SELECT COUNT(DISTINCT day) FROM sighting_days").fetchone()[0]
         hits = conn.execute("SELECT COALESCE(SUM(hits),0) FROM sightings").fetchone()[0]
         span = conn.execute("SELECT MIN(first_seen), MAX(last_seen) FROM sightings").fetchone()
         print(f"reports in db : {total}")
         print(f"web spots     : {web}  ({fixed} fest, {web - fixed} mobil)")
-        live = build_sites(conn)
-        live_n = sum(1 for s in live if s.get("live"))
+        print(f"merged view   : {len(merged)}  ({len(merged) - web} nur aus dem Live-Feed)")
+        live_n = sum(1 for s in merged if s.get("live"))
         print(f"live now      : {live_n}  (letzte {LIVE_HOURS:.0f} h)")
         print(f"new since     : {fresh}  (Archiv seit {seeded[:16] or '-'})")
         print(f"not listed    : {archived}")
