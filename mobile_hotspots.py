@@ -75,7 +75,11 @@ QUERY_ZOOM = 16
 MIN_CELL_DEG = 0.0018          # ~200 m; below this stop subdividing
 MAX_DEPTH = 6
 REQUEST_DELAY = 0.12           # seconds between requests
-CLUSTER_RADIUS_M = 150.0       # sightings within this distance form one site
+# How close two reports must be to count as the same place. Kept tight on
+# purpose: a camera 60 m further down the road is its own spot in the archive,
+# while two reports 40 m apart are the same camera seen twice.
+SAME_PLACE_M = 50.0
+CLUSTER_RADIUS_M = SAME_PLACE_M   # feed sightings this close form one site
 MIN_DAY_HITS = 1
 LIVE_HOURS = 6.0               # a feed hit counts as "currently live" this long
 
@@ -178,7 +182,7 @@ DEFAULT_ORTE = [
     "Burbach-Nordrhein-Westfalen",
 ]
 MERCATOR_ZOOM = 16
-MERGE_RADIUS_M = 250.0
+MERGE_RADIUS_M = SAME_PLACE_M   # live report this close to an archived spot = same spot
 
 _CARD_RE = re.compile(
     r'<li class="card(?:\s+card--spot)?">\s*<a href="([^"]+)">\s*'
@@ -913,7 +917,7 @@ def merge_webspots(conn, live_sites):
     """The /ort/ block is the authoritative aggregate; live feed hits within
     MERGE_RADIUS_M get folded into it, the rest stand alone as live-only spots.
 
-    Fixed cameras are never merge targets: a mobile report 200 m away is a
+    Fixed cameras are never merge targets: a mobile report 60 m away is a
     different installation, not more evidence for the box on the B62.
     """
     web = load_webspots(conn)

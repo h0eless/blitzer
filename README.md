@@ -57,8 +57,10 @@ itself; no upload step.
 
 - A URL is matched to an existing row of the same kind within **15 m** and
   re-keyed instead of duplicated, so a re-listed camera is the same place.
-- A live report within **250 m** of an archived mobile spot is folded into it
-  (`live`, `live_at`) instead of creating a second point.
+- `SAME_PLACE_M = 50` is the "one place" radius for the live feed: sightings
+  within 50 m form one site, and only a report within 50 m of an archived
+  mobile spot is folded into it (`live`, `live_at`). Anything further away is
+  added as its own point, so a camera 60 m down the road is not lost.
 - `first_seen` is insert-only; `meta.seeded_at` marks the baseline. Spots that
   vanish become `active=0` and are never deleted.
 - `mark_missing()` only archives when a scrape covered at least 50 % of the
