@@ -554,21 +554,25 @@ function passes(s, includeGone){
 const map = L.map('map', {zoomControl:false, attributionControl:true}).setView([50.87,8.02], 11);
 
 // Esri's dark canvas needs no API key and allows direct tile use.
-// If those tiles ever fail, OSM is the fallback so the map is never blank.
+// It only has real tiles up to zoom 16; above that the service answers with a
+// "Map data not yet available" placeholder image (HTTP 200, so no tileerror).
+// maxNativeZoom makes Leaflet enlarge the last real level instead, and the
+// label layer simply stops at 16 so its text does not blow up.
+// If the tiles fail altogether, OSM is the fallback so the map is never blank.
 const dark = L.tileLayer(
   'https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}',
-  {maxZoom:19, attribution:'&copy; Esri, HERE, Garmin, OpenStreetMap'}
+  {maxZoom:18, maxNativeZoom:16, attribution:'&copy; Esri, HERE, Garmin, OpenStreetMap'}
 ).addTo(map);
 L.tileLayer(
   'https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Reference/MapServer/tile/{z}/{y}/{x}',
-  {maxZoom:19, pane:'overlayPane', opacity:.9}
+  {maxZoom:16, pane:'overlayPane', opacity:.9}
 ).addTo(map);
 let tileErrors = 0;
 dark.on('tileerror', () => {
   if(++tileErrors === 6){
     map.removeLayer(dark);
     L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-      {maxZoom:19, attribution:'&copy; OpenStreetMap'}).addTo(map);
+      {maxZoom:18, attribution:'&copy; OpenStreetMap'}).addTo(map);
     toast('Kartenkacheln: OSM-Fallback aktiv');
   }
 });
