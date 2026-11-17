@@ -62,18 +62,28 @@ UA = (
     "(KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36"
 )
 
-# Mobile report types. 1..19 = mobile speed traps (vmax in the payload),
-# 2 = mobile red light, 6 = tailgating, 7 = semi-stationary trailer.
-MOBILE_TYPES = "1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19"
-FIXED_TYPES = "110,111,112,113,114"
+# Mobile report types as the map itself asks for them (0-6 = mobile speed,
+# red light and tailgating), plus the semi-stationary trailer ("ts", which the
+# payload returns as type 7). Types 20-29 are hazard markers (accident, road
+# works, congestion) and "vwd"/"closure" are police/closure notices - all of
+# that belongs to a different layer, not to speed traps.
+MOBILE_TYPES = "0,1,2,3,4,5,6,ts"
+# Stationary cameras: 101-117 covers speed, red light, section control, tunnel,
+# entry/height/weight checks, bus lane and no-overtaking. `ts` is not fixed.
+FIXED_TYPES = "101,102,103,104,105,106,107,108,109,110,111,112,113,114,115,117"
 
 # Siegen + Kreuztal + the ring of towns around them.
-DEFAULT_BBOX = (50.75, 7.80, 51.05, 8.20)
+DEFAULT_BBOX = (50.60, 7.57, 51.15, 8.48)   # ~30 km ring around Siegen
 
 MAX_ZOOM = 18
 QUERY_ZOOM = 16
 MIN_CELL_DEG = 0.0018          # ~200 m; below this stop subdividing
 MAX_DEPTH = 6
+# The marker API answers an oversized box with an empty list, so the ring is
+# queried in tiles. 0.45 deg lat x 0.55 deg lng is comfortably inside the limit
+# (a 0.5 x 0.9 box already comes back empty).
+MAX_TILE_LAT = 0.45
+MAX_TILE_LNG = 0.55
 REQUEST_DELAY = 0.12           # seconds between requests
 # How close two reports must be to count as the same place. Kept tight on
 # purpose: a camera 60 m further down the road is its own spot in the archive,
@@ -161,9 +171,21 @@ def sweep(sw, ne, types, depth=0):
 
 
 def sweep_bbox(bbox, types):
-    sw = (bbox[0], bbox[1])
-    ne = (bbox[2], bbox[3])
-    return sweep(sw, ne, types)
+    """Sweep a box of any size, tile by tile, so the API never sees too much."""
+    sw_lat, sw_lng, ne_lat, ne_lng = bbox
+    d_lat = ne_lat - sw_lat
+    d_lng = ne_lng - sw_lng
+    rows = max(1, int(math.ceil(d_lat / MAX_TILE_LAT - 1e-9))) if d_lat > 0 else 1
+    cols = max(1, int(math.ceil(d_lng / MAX_TILE_LNG - 1e-9))) if d_lng > 0 else 1
+    out = []
+    for i in range(rows):
+        a0 = sw_lat + d_lat * i / rows
+        a1 = sw_lat + d_lat * (i + 1) / rows
+        for j in range(cols):
+            b0 = sw_lng + d_lng * j / cols
+            b1 = sw_lng + d_lng * (j + 1) / cols
+            out.extend(sweep((a0, b0), (a1, b1), types))
+    return out
 
 
 # --------------------------------------------------------------------------- #
@@ -171,15 +193,46 @@ def sweep_bbox(bbox, types):
 # --------------------------------------------------------------------------- #
 
 SITE_BASE = "https://www.blitzer.de"
+# Every town within ~30 km of Siegen that blitzer.de keeps an /ort/ page for.
+# Built from the region pages plus the site's own neighbour links (see
+# orte_ring.json / README); slugs are the site's URL form, "+" is a space.
 DEFAULT_ORTE = [
+    # Siegerland
     "Siegen-Nordrhein-Westfalen",
-    "Kreuztal-Nordrhein-Westfalen",
     "Netphen-Nordrhein-Westfalen",
-    "Hilchenbach-Nordrhein-Westfalen",
     "Wilnsdorf-Nordrhein-Westfalen",
-    "Freudenberg-Nordrhein-Westfalen",
     "Neunkirchen-Nordrhein-Westfalen",
+    "Kreuztal-Nordrhein-Westfalen",
+    "Freudenberg-Nordrhein-Westfalen",
+    "Hilchenbach-Nordrhein-Westfalen",
     "Burbach-Nordrhein-Westfalen",
+    "Erndtebr%C3%BCck-Nordrhein-Westfalen",
+    "Bad+Laasphe-Nordrhein-Westfalen",
+    # southern Sauerland / Bergisches Land
+    "Niederfischbach-Nordrhein-Westfalen",
+    "Wenden-Nordrhein-Westfalen",
+    "Olpe-Nordrhein-Westfalen",
+    "Drolshagen-Nordrhein-Westfalen",
+    "Morsbach-Nordrhein-Westfalen",
+    "Kirchhundem-Nordrhein-Westfalen",
+    "Reichshof-Nordrhein-Westfalen",
+    "Lennestadt-Nordrhein-Westfalen",
+    "Attendorn-Nordrhein-Westfalen",
+    "Waldbr%C3%B6l-Nordrhein-Westfalen",
+    # northern Rhineland-Palatinate
+    "Mudersbach-Rheinland-Pfalz",
+    "Kirchen+%28Sieg%29-Rheinland-Pfalz",
+    "H%C3%B6vels-Rheinland-Pfalz",
+    "Liebenscheid-Rheinland-Pfalz",
+    "M%C3%BCschenbach-Rheinland-Pfalz",
+    "Rehe-Rheinland-Pfalz",
+    # Lahn-Dill / Hessisches Hinterland
+    "Haiger-Hessen",
+    "Dillenburg-Hessen",
+    "Eschenburg-Hessen",
+    "Driedorf-Hessen",
+    "Herborn-Hessen",
+    "Niederdieten-Hessen",
 ]
 MERCATOR_ZOOM = 16
 MERGE_RADIUS_M = SAME_PLACE_M   # live report this close to an archived spot = same spot
@@ -576,6 +629,7 @@ def _migrate(conn):
 
 
 IDENTITY_M = 15.0     # same physical camera = same pin, within a few metres
+FEED_URL_PREFIX = "feed:fixed:"   # pseudo URL for cameras only the map knows
 
 
 def _find_place(conn, kind, lat, lng, radius_m=IDENTITY_M):
@@ -654,6 +708,50 @@ def store_webspots(conn, spots):
         )
     conn.commit()
     return len(spots), rekeyed
+
+
+def store_fixed_feed(conn, bbox):
+    """Stationary cameras from the live map, as archive rows.
+
+    The town pages only list a town's own cameras; the map's fixed layer covers
+    the whole ring, including cameras on country roads that no /ort/ page
+    mentions. A camera already archived from a page (same pin within 15 m) is
+    left alone, so its detail URL and month history survive.
+    """
+    now_iso = _now_iso()
+    added = 0
+    for poi in sweep_bbox(bbox, FIXED_TYPES):
+        if int(poi.get("type", 0)) == 1000:
+            continue
+        try:
+            lat, lng = float(poi["lat"]), float(poi["lng"])
+        except (KeyError, TypeError, ValueError):
+            continue
+        if _find_place(conn, "fixed", lat, lng):
+            continue
+        key = poi.get("key") or poi.get("id") or f"{lat:.5f},{lng:.5f}"
+        url = f"{FEED_URL_PREFIX}{key}"
+        addr = poi.get("address") or {}
+        info = poi.get("info") or {}
+        art = (info.get("kind") or "").strip() or "Fester Blitzer"
+        conn.execute(
+            """
+            INSERT INTO webspots (url, ort, city, street, vmax, days, last_month,
+                                  months, lat, lng, scraped_at, kind, art, note,
+                                  first_seen, active)
+            VALUES (?, '', ?, ?, ?, NULL, '', '{}', ?, ?, ?, 'fixed', ?, '', ?, 1)
+            ON CONFLICT(url) DO UPDATE SET
+                city=excluded.city, street=excluded.street, vmax=excluded.vmax,
+                lat=excluded.lat, lng=excluded.lng, scraped_at=excluded.scraped_at,
+                art=excluded.art, active=1
+            """,
+            (url, addr.get("city") or "", addr.get("street") or "",
+             _int(poi.get("vmax")), round(lat, 6), round(lng, 6), now_iso, art,
+             now_iso),
+        )
+        added += 1
+    conn.commit()
+    return added
 
 
 def mark_missing(conn, spots):
@@ -1234,6 +1332,9 @@ def main(argv=None):
         spots = scrape_orte(orte, with_fixed=not args.no_fixed)
         if args.live:
             run_once(conn, args.bbox, args.types, label="live ")
+            if not args.no_fixed:
+                n = store_fixed_feed(conn, args.bbox)
+                print(f"{n} feste(r) Blitzer aus der Karte")
         stored, rekeyed = store_webspots(conn, spots)
         gone = mark_missing(conn, spots)
         # First run ever: everything just imported is the baseline, not "new".
@@ -1250,7 +1351,7 @@ def main(argv=None):
     elif args.command == "once":
         run_once(conn, args.bbox, args.types)
         if args.with_fixed:
-            run_once(conn, args.bbox, FIXED_TYPES, label="fixed ")
+            print(f"{store_fixed_feed(conn, args.bbox)} feste(r) Blitzer aus der Karte")
         if args.auto_export:
             export(conn, args.out)
 
@@ -1260,7 +1361,7 @@ def main(argv=None):
             try:
                 run_once(conn, args.bbox, args.types)
                 if args.with_fixed:
-                    run_once(conn, args.bbox, FIXED_TYPES, label="fixed ")
+                    print(f"{store_fixed_feed(conn, args.bbox)} feste(r) Blitzer aus der Karte")
                 if args.auto_export:
                     export(conn, args.out)
             except KeyboardInterrupt:

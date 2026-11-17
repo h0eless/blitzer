@@ -73,16 +73,40 @@ header{position:fixed;top:0;left:0;right:0;z-index:1200;
 .geobtn[data-on="1"]{border-color:rgba(58,210,159,.5);color:var(--accent)}
 .geobtn svg{width:15px;height:15px;fill:none;stroke:currentColor;stroke-width:1.9}
 
-/* town picker */
-.townbar{display:flex;gap:7px;margin:9px -16px -2px;padding:0 16px 2px;
-  overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none}
-.townbar::-webkit-scrollbar{display:none}
-.town{flex:0 0 auto;display:flex;align-items:center;gap:6px;
-  border:1px solid var(--line);background:var(--bg2);color:var(--dim);
-  padding:6px 11px;border-radius:999px;font-size:12.5px;font-weight:600;white-space:nowrap}
-.town b{font-weight:800;font-size:11px;color:var(--dim2);font-variant-numeric:tabular-nums}
-.town.on{background:var(--txt);color:#0b0d10;border-color:var(--txt)}
-.town.on b{color:rgba(11,13,16,.55)}
+/* town picker: one button instead of a bar full of pills */
+.townbtn{display:flex;align-items:center;gap:8px;width:100%;margin-top:9px;
+  border:1px solid var(--line);background:var(--bg2);color:var(--txt);
+  padding:9px 12px;border-radius:12px;font-size:13.5px;font-weight:600;text-align:left;
+  touch-action:manipulation}
+.townbtn:active{background:#1b2027}
+.townbtn svg{flex:0 0 auto;width:16px;height:16px;fill:none;stroke:currentColor;
+  stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;opacity:.75}
+.townbtn .nm{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.townbtn .cnt{color:var(--dim2);font-size:11.5px;font-weight:800;
+  font-variant-numeric:tabular-nums}
+.townbtn.on{border-color:rgba(58,210,159,.45)}
+.townbtn.on .nm{color:var(--accent)}
+
+/* town sheet */
+.sheet--town{display:flex;flex-direction:column;max-height:88dvh;overflow:hidden}
+.sheet--town .sub{margin-bottom:12px}
+.tshead{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.tsclose{flex:0 0 auto;width:30px;height:30px;border-radius:50%;border:1px solid var(--line);
+  background:var(--card);color:var(--dim);font-size:15px;line-height:1;
+  display:flex;align-items:center;justify-content:center;touch-action:manipulation}
+.tsclose:active{background:#1b2027;color:var(--txt)}
+.tslist{flex:1;min-height:0;overflow-y:auto;-webkit-overflow-scrolling:touch;
+  overscroll-behavior:contain;padding-bottom:calc(var(--safe-b) + 10px)}
+.tsrow{display:flex;align-items:center;gap:10px;width:100%;
+  padding:12px 2px;border:0;border-bottom:1px solid var(--line);
+  background:none;color:var(--txt);font:inherit;text-align:left;touch-action:manipulation}
+.tsrow:active{background:rgba(255,255,255,.04)}
+.tsrow .nm{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tsrow .km{color:var(--dim2);font-size:12px;font-variant-numeric:tabular-nums}
+.tsrow .n{color:var(--dim);font-size:12px;font-weight:700;min-width:28px;text-align:right;
+  font-variant-numeric:tabular-nums}
+.tsrow.on .nm,.tsrow.on .n{color:var(--accent)}
+.tsempty{padding:22px 2px;color:var(--dim);font-size:13.5px}
 
 /* ---------- views ---------- */
 main{flex:1;position:relative;padding-top:var(--head)}
@@ -144,11 +168,11 @@ main{flex:1;position:relative;padding-top:var(--head)}
   padding:7px 13px;border-radius:999px;font-size:13px;font-weight:550;white-space:nowrap}
 .chip.on{background:var(--txt);color:#0b0d10;border-color:var(--txt)}
 .search{width:100%;margin:0 0 12px;padding:12px 14px;border-radius:14px;
-  border:1px solid var(--line);background:var(--card);color:var(--txt);font-size:15px;outline:none}
+  border:1px solid var(--line);background:var(--card);color:var(--txt);font-size:16px;outline:none}
 .search::placeholder{color:var(--dim2)}
 .card{position:relative;display:flex;gap:12px;align-items:center;
   padding:13px 14px;margin-bottom:9px;background:var(--card);border:1px solid var(--line);
-  border-radius:16px}
+  border-radius:16px;content-visibility:auto;contain-intrinsic-size:auto 70px}
 .card:active{background:#1b2027}
 .sign{flex:0 0 42px;width:42px;height:42px;border-radius:50%;display:flex;
   align-items:center;justify-content:center;font-weight:800;font-size:15px;
@@ -164,6 +188,10 @@ main{flex:1;position:relative;padding-top:var(--head)}
 .dist{flex:0 0 auto;color:var(--dim);font-size:12.5px;font-variant-numeric:tabular-nums;
   align-self:flex-start;margin-top:2px}
 .empty{padding:40px 8px;text-align:center;color:var(--dim)}
+.more{display:block;width:100%;margin:6px 0 10px;padding:13px;border-radius:14px;
+  border:1px dashed var(--line);background:none;color:var(--dim);font:inherit;
+  font-size:13.5px;font-weight:600;touch-action:manipulation}
+.more:active{background:var(--card)}
 
 /* fixed cameras: a blue square, deliberately not part of the heat scale */
 .pin-fixed{width:22px;height:22px;border-radius:6px;display:flex;align-items:center;
@@ -265,7 +293,12 @@ nav svg{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:1.8;
       <span id="geotxt">Nähe</span>
     </button>
   </div>
-  <div class="townbar" id="townbar"></div>
+  <button class="townbtn" id="townbtn" aria-haspopup="dialog">
+    <svg viewBox="0 0 24 24"><path d="M12 21s7-5.5 7-11a7 7 0 1 0-14 0c0 5.5 7 11 7 11Z"/><circle cx="12" cy="10" r="2.6"/></svg>
+    <span class="nm" id="townbtn-name">Alle Orte</span>
+    <span class="cnt" id="townbtn-cnt"></span>
+    <svg viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg>
+  </button>
 </header>
 
 <main>
@@ -387,6 +420,18 @@ nav svg{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:1.8;
   <a class="openlink" id="sh-link" href="#" target="_blank" rel="noopener">Details auf blitzer.de</a>
 </div>
 
+<div class="sheet sheet--town" id="townsheet" role="dialog" aria-label="Ort wählen">
+  <div class="grab"></div>
+  <div class="tshead">
+    <h3>Ort</h3>
+    <button class="tsclose" id="ts-close" aria-label="Schließen">✕</button>
+  </div>
+  <div class="sub" id="ts-sub">Filter für Karte, Liste und Archiv</div>
+  <input class="search" id="ts-search" placeholder="Ort suchen" autocomplete="off"
+         autocapitalize="off" autocorrect="off" enterkeyhint="search" spellcheck="false">
+  <div class="tslist" id="ts-list"></div>
+</div>
+
 <div class="toast" id="toast"></div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
@@ -399,8 +444,10 @@ const COLOUR_RGB = {4:[255,77,79],3:[255,159,67],2:[255,209,102],1:[58,210,159]}
 const FIXED_COLOUR = '#4f9cff';
 const LIVE_COLOUR = '#ff3b6b';
 
+const savedTown = (() => { try { return localStorage.getItem('bt-town') || 'all'; } catch(e){ return 'all'; } })();
 const state = { filter:'all', query:'', pos:null, sortByDistance:false,
-                following:false, watchId:null, newMode:'7', town:'all' };
+                following:false, watchId:null, newMode:'7', town:savedTown,
+                listLimit:80, newLimit:80, lastPos:null };
 
 /* ---------- helpers ---------- */
 const $ = s => document.querySelector(s);
@@ -474,33 +521,78 @@ function countNew(days){
 /* town picker: one filter for map, list and archive */
 function siteTown(s){ return (s.city || '').trim() || 'Ohne Ort'; }
 function townMatch(s){ return state.town === 'all' || siteTown(s) === state.town; }
+function townOf(name){ return TOWNS.find(t => t.name === name) || null; }
 
-function renderTownbar(){
-  const bar = $('#townbar');
-  if(!bar) return;
-  const active = SITES.filter(s => s.active !== false).length;
-  const items = [{ name:'all', label:'Alle', n:active }].concat(
-    TOWNS.map(t => ({ name:t.name, label:t.name, n:t.n }))
+function setTown(name){
+  state.town = name || 'all';
+  state.listLimit = 80; state.newLimit = 80;
+  try { localStorage.setItem('bt-town', state.town); } catch(e){}
+  renderTownButton();
+  updateTownLink();
+  drawMap(); renderList(); renderNew();
+  fitToView();
+}
+
+function renderTownButton(){
+  const btn = $('#townbtn');
+  if(!btn) return;
+  const active = SITES.filter(s => s.active !== false);
+  const n = state.town === 'all' ? active.length
+          : active.filter(s => siteTown(s) === state.town).length;
+  $('#townbtn-name').textContent = state.town === 'all' ? 'Alle Orte' : state.town;
+  $('#townbtn-cnt').textContent = n;
+  btn.classList.toggle('on', state.town !== 'all');
+}
+
+function renderTownSheet(){
+  const list = $('#ts-list');
+  if(!list) return;
+  const q = ($('#ts-search').value || '').toLowerCase().trim();
+  const total = SITES.filter(s => s.active !== false).length;
+  let rows = [{ name:'all', label:'Alle Orte', n:total }].concat(
+    TOWNS.map(t => ({ name:t.name, label:t.name, n:t.n, lat:t.lat, lng:t.lng }))
   );
-  bar.innerHTML = items.map(t =>
-    `<button class="town${state.town === t.name ? ' on' : ''}" data-t="${esc(t.name)}">` +
-    `${esc(t.label)}<b>${t.n}</b></button>`
-  ).join('');
-  bar.querySelectorAll('.town').forEach(b => {
-    b.addEventListener('click', () => {
-      state.town = b.dataset.t;
-      renderTownbar();
-      updateTownLink();
-      drawMap(); renderList(); renderNew();
-    });
+  if(q) rows = rows.filter(t => t.label.toLowerCase().includes(q));
+  const known = state.pos;
+  rows.sort((a,b) => {
+    if(a.name === 'all') return -1;
+    if(b.name === 'all') return 1;
+    if(known && a.lat != null && b.lat != null){
+      return haversine(known,[a.lat,a.lng]) - haversine(known,[b.lat,b.lng]);
+    }
+    return (b.n - a.n) || a.label.localeCompare(b.label);
   });
+  if(!rows.length){ list.innerHTML = '<div class="tsempty">Kein Ort gefunden.</div>'; return; }
+  list.innerHTML = rows.map(t => {
+    const km = (known && t.lat != null)
+      ? (haversine(known,[t.lat,t.lng]) / 1000).toFixed(haversine(known,[t.lat,t.lng]) < 10000 ? 1 : 0) + ' km'
+      : '';
+    return `<button class="tsrow${state.town === t.name ? ' on' : ''}" data-t="${esc(t.name)}">` +
+      `<span class="nm">${esc(t.label)}</span>` +
+      (km ? `<span class="km">${km}</span>` : '') +
+      `<span class="n">${t.n}</span></button>`;
+  }).join('');
+  list.querySelectorAll('.tsrow').forEach(b => {
+    b.addEventListener('click', () => { setTown(b.dataset.t); closeTownSheet(); });
+  });
+}
+
+function openTownSheet(){
+  $('#ts-search').value = '';
+  renderTownSheet();
+  $('#townsheet').classList.add('on');
+  bd.classList.add('on');
+}
+function closeTownSheet(){
+  $('#townsheet').classList.remove('on');
+  bd.classList.remove('on');
 }
 
 function updateTownLink(){
   const el = $('#town-link');
   if(!el) return;
   if(state.town === 'all'){ el.textContent = 'Alle'; return; }
-  const t = TOWNS.find(x => x.name === state.town);
+  const t = townOf(state.town);
   el.innerHTML = (t && t.url)
     ? `<a href="${esc(t.url)}" target="_blank" rel="noopener">${esc(t.name)} ↗</a>`
     : esc(state.town);
@@ -583,6 +675,10 @@ setTimeout(() => {
 }, 0);
 
 const layer = L.layerGroup().addTo(map);
+/* Vector pins go to a single canvas: hundreds of markers stay cheap on a phone.
+   The live rings keep the SVG renderer, because their sonar pulse is CSS. */
+const canvasRenderer = L.canvas({padding:0.35});
+const svgRenderer = L.svg({padding:0.35});
 function drawMap(){
   layer.clearLayers();
   const rows = withDistance().filter(s => passes(s, true))
@@ -595,7 +691,7 @@ function drawMap(){
       // vanished spot: kept forever as a faint grey hint where traps used to be
       const g = L.circleMarker([s.lat,s.lng], {
         radius:5, color:'#6b7686', weight:1.5, opacity:.7, dashArray:'2 3',
-        fill:false, className:'pin-gone'
+        fill:false, className:'pin-gone', renderer:canvasRenderer
       });
       g.on('click', () => openSheet(s));
       g.bindTooltip(s.street || 'Archiv', {direction:'top', className:'pinlabel-gone'});
@@ -607,7 +703,7 @@ function drawMap(){
       // a dashed halo so fresh finds are obvious on the map
       layer.addLayer(L.circleMarker([s.lat,s.lng], {
         radius:r + 8, color:'#3ad29f', weight:1.5, opacity:.85, dashArray:'3 4',
-        fill:false, interactive:false
+        fill:false, interactive:false, renderer:canvasRenderer
       }));
     }
     if(isFixed(s)){
@@ -626,12 +722,12 @@ function drawMap(){
       if(isLiveFresh(s)){
         layer.addLayer(L.circleMarker([s.lat,s.lng], {
           radius:r + 6, color:LIVE_COLOUR, weight:2, opacity:.9, fill:false,
-          className:'pin-pulse', interactive:false
+          className:'pin-pulse', interactive:false, renderer:svgRenderer
         }));
       }
       const m = L.circleMarker([s.lat,s.lng], {
         radius:r, color:LIVE_COLOUR, weight:3, fillColor:LIVE_COLOUR, fillOpacity:.34,
-        className:'pin pin-live'
+        className:'pin pin-live', renderer:svgRenderer
       });
       m.on('click', () => openSheet(s));
       const limit = (s.vmax && s.vmax.length) ? s.vmax[0] : '•';
@@ -643,23 +739,23 @@ function drawMap(){
     }
     const c = COLOURS[sev(s)] || COLOURS[1];
     const m = L.circleMarker([s.lat,s.lng], {
-      radius:r, color:c, weight:2.5, fillColor:c, fillOpacity:.22, className:'pin'
+      radius:r, color:c, weight:2.5, fillColor:c, fillOpacity:.22,
+      className:'pin', renderer:canvasRenderer
     });
     m.on('click', () => openSheet(s));
-    // keep a compact label inside the bigger pins
-    m.bindTooltip(String(s.days||''), {permanent:true, direction:'center',
-      className:'pinlabel', opacity:0});
     layer.addLayer(m);
   }
-  if(rows.length && state.town !== 'all' && !state.following){
-    map.fitBounds(rows.map(s=>[s.lat,s.lng]), {padding:[42,42], maxZoom:14});
-  } else if(rows.length && state.town === 'all' && !state.following && !state.pos){
-    map.fitBounds(rows.map(s=>[s.lat,s.lng]), {padding:[46,46], maxZoom:13});
-  }
+}
+function fitToView(){
+  if(state.following) return;
+  const rows = withDistance().filter(s => passes(s, true) && s.active !== false);
+  if(!rows.length) return;
+  const all = state.town === 'all';
+  map.fitBounds(rows.map(s=>[s.lat,s.lng]),
+    {padding:[all?46:42, all?46:42], maxZoom: all?13:14});
 }
 const pinLabelStyle = document.createElement('style');
-pinLabelStyle.textContent = '.pinlabel{background:none;border:0;box-shadow:none;color:#08120e;font-size:10px;font-weight:800;padding:0}'
-  + '.pinlabel-gone{background:rgba(20,24,30,.92);border:1px solid #2c3341;border-radius:6px;'
+pinLabelStyle.textContent = '.pinlabel-gone{background:rgba(20,24,30,.92);border:1px solid #2c3341;border-radius:6px;'
   + 'color:#98a2b3;font-size:11px;font-weight:600;padding:3px 7px;box-shadow:0 4px 10px rgba(0,0,0,.4)}'
   + '.pinlabel-gone::before{display:none}';
 document.head.appendChild(pinLabelStyle);
@@ -704,7 +800,7 @@ function cardHTML(s, opts){
 }
 
 function renderList(){
-  const rows = withDistance().filter(s => passes(s))
+  let rows = withDistance().filter(s => passes(s))
     .sort((a,b) => {
       if(state.sortByDistance && a.dist!=null && b.dist!=null) return a.dist-b.dist;
       return (isLive(b)?1:0) - (isLive(a)?1:0) ||
@@ -713,10 +809,23 @@ function renderList(){
     });
   const box = $('#cards');
   if(!rows.length){ box.innerHTML = '<div class="empty">Nichts gefunden.</div>'; return; }
-  box.innerHTML = rows.map(s => cardHTML(s)).join('');
+  const LIMIT = state.listLimit;
+  const shown = rows.slice(0, LIMIT);
+  box.innerHTML = shown.map(s => cardHTML(s)).join('');
   box.querySelectorAll('.card').forEach(el => {
     el.addEventListener('click', () => openSheet(SITES[Number(el.dataset.i)]));
   });
+  appendMore(box, rows.length - shown.length, () => { state.listLimit += 80; renderList(); });
+}
+
+/* long lists are built in pages: a phone should not lay out 400 cards at once */
+function appendMore(box, rest, onClick){
+  if(rest <= 0) return;
+  const b = document.createElement('button');
+  b.className = 'more';
+  b.textContent = `Weitere ${Math.min(80, rest)} anzeigen · ${rest} übrig`;
+  b.addEventListener('click', onClick);
+  box.appendChild(b);
 }
 
 /* ---------- new / archive view ---------- */
@@ -756,10 +865,12 @@ function renderNew(){
     box.innerHTML = '<div class="empty">Nichts Neues in diesem Zeitraum.</div>';
     return;
   }
-  box.innerHTML = rows.map(s => cardHTML(s, {showTag:true, showDate:true})).join('');
+  const shown = rows.slice(0, state.newLimit);
+  box.innerHTML = shown.map(s => cardHTML(s, {showTag:true, showDate:true})).join('');
   box.querySelectorAll('.card').forEach(el => {
     el.addEventListener('click', () => openSheet(SITES[Number(el.dataset.i)]));
   });
+  appendMore(box, rows.length - shown.length, () => { state.newLimit += 80; renderNew(); });
 }
 
 $('#chips-new').querySelectorAll('.chip').forEach(ch => {
@@ -767,6 +878,7 @@ $('#chips-new').querySelectorAll('.chip').forEach(ch => {
     $('#chips-new').querySelectorAll('.chip').forEach(x => x.classList.remove('on'));
     ch.classList.add('on');
     state.newMode = ch.dataset.n;
+    state.newLimit = 80;
     renderNew();
   });
 });
@@ -828,8 +940,11 @@ function openSheet(s){
 
   sheet.classList.add('on'); bd.classList.add('on');
 }
-function closeSheet(){ sheet.classList.remove('on'); bd.classList.remove('on'); }
+function closeSheet(){ sheet.classList.remove('on'); closeTownSheet(); }
 bd.addEventListener('click', closeSheet);
+$('#townbtn').addEventListener('click', openTownSheet);
+$('#ts-close').addEventListener('click', closeTownSheet);
+$('#ts-search').addEventListener('input', renderTownSheet);
 let startY = 0, dragging = false;
 sheet.addEventListener('touchstart', e => { startY = e.touches[0].clientY; dragging = true; }, {passive:true});
 sheet.addEventListener('touchmove', e => {
@@ -862,11 +977,13 @@ document.querySelectorAll('.chip').forEach(ch => {
     ch.classList.add('on');
     state.filter = ch.dataset.f;
     state.sortByDistance = (ch.dataset.f === 'near');
+    state.listLimit = 80;
     drawMap(); renderList();
   });
 });
 $('#q').addEventListener('input', e => {
   state.query = e.target.value.trim();
+  state.listLimit = 80;
   drawMap(); renderList();
 });
 
@@ -1009,11 +1126,17 @@ async function startFollow(){
   if(state.watchId != null) navigator.geolocation.clearWatch(state.watchId);
   state.watchId = navigator.geolocation.watchPosition(pos => {
     const p = [pos.coords.latitude, pos.coords.longitude];
+    const moved = !state.lastPos || haversine(state.lastPos, p) > 30;
     state.pos = p;
     setGeoStatus({ fix: p[0].toFixed(4) + ', ' + p[1].toFixed(4) + ' ±' + Math.round(pos.coords.accuracy || 0) + ' m' });
     paintMe(p, pos.coords.accuracy);
     if(state.following) map.setView(p, Math.max(map.getZoom(), 15), {animate:true});
-    drawMap(); renderList();
+    // rebuilding 300 markers every three seconds is what makes phones stutter
+    if(moved){
+      state.lastPos = p;
+      drawMap(); renderList();
+      if($('#townsheet').classList.contains('on')) renderTownSheet();
+    }
   }, err => {
     setGeoStatus({ error: describeError(err) });
     setFollow(false);
@@ -1064,9 +1187,11 @@ setGeoStatus({
   protocol: location.protocol + '//' + location.hostname,
   secure: window.isSecureContext === true
 });
+// a remembered town that no longer has spots would show an empty map
+if(state.town !== 'all' && !townOf(state.town)) state.town = 'all';
 drawMap();
 renderList();
-renderTownbar();
+renderTownButton();
 updateTownLink();
 renderNew();
 syncHead();
@@ -1081,7 +1206,8 @@ def _towns(sites):
     """The town picker payload: one entry per city that has active spots.
 
     `name` is the city as the pages spell it (that is what the app filters on),
-    `url` the matching blitzer.de /ort/ page built from the archived slug.
+    `url` the matching blitzer.de /ort/ page built from the archived slug,
+    `lat`/`lng` the mean position, used to sort the picker by distance.
     """
     seen = {}
     order = []
@@ -1090,13 +1216,25 @@ def _towns(sites):
             continue
         name = (s.get("city") or "").strip() or "Ohne Ort"
         if name not in seen:
-            seen[name] = {"name": name, "n": 0, "url": ""}
+            seen[name] = {"name": name, "n": 0, "url": "", "_lat": 0.0, "_lng": 0.0}
             order.append(name)
-        seen[name]["n"] += 1
+        t = seen[name]
+        t["n"] += 1
+        t["_lat"] += s.get("lat") or 0.0
+        t["_lng"] += s.get("lng") or 0.0
         slug = (s.get("ort") or "").strip()
-        if slug and not seen[name]["url"]:
-            seen[name]["url"] = f"{mh.SITE_BASE}/ort/blitzer-in-{slug}"
-    out = [seen[n] for n in order if seen[n]["n"] > 0]
+        if slug and not t["url"]:
+            t["url"] = f"{mh.SITE_BASE}/ort/blitzer-in-{slug}"
+    out = []
+    for n in order:
+        t = seen[n]
+        if t["n"] <= 0:
+            continue
+        out.append({
+            "name": t["name"], "n": t["n"], "url": t["url"],
+            "lat": round(t["_lat"] / t["n"], 5),
+            "lng": round(t["_lng"] / t["n"], 5),
+        })
     out.sort(key=lambda t: (-t["n"], t["name"]))
     return out
 
@@ -1148,7 +1286,7 @@ def main(argv=None):
     ap.add_argument("--db", type=Path, default=mh.DB_PATH)
     ap.add_argument("--out", type=Path, default=Path(__file__).with_name("blitzer_app.html"))
     ap.add_argument("--title", default="Blitzer Hotspots")
-    ap.add_argument("--orte", default="Siegen, Kreuztal")
+    ap.add_argument("--orte", default="Umkreis 30 km um Siegen")
     args = ap.parse_args(argv)
 
     count, path = build(args.db, args.out, args.title, args.orte)

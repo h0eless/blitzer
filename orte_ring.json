@@ -1,0 +1,322 @@
+[
+ {
+  "slug": "Siegen-Nordrhein-Westfalen",
+  "name": "Siegen",
+  "km": 0.0,
+  "lat": 50.87444,
+  "lng": 8.02444,
+  "state": "Nordrhein-Westfalen",
+  "cards": 36,
+  "anchor": "Mudersbach"
+ },
+ {
+  "slug": "Netphen-Nordrhein-Westfalen",
+  "name": "Netphen",
+  "km": 7.1,
+  "lat": 50.91028,
+  "lng": 8.10861,
+  "state": "Nordrhein-Westfalen",
+  "cards": 16,
+  "anchor": "Siegen"
+ },
+ {
+  "slug": "Mudersbach-Rheinland-Pfalz",
+  "name": "Mudersbach",
+  "km": 7.9,
+  "lat": 50.82444,
+  "lng": 7.94389,
+  "state": "Rheinland-Pfalz",
+  "cards": 10,
+  "anchor": "Kirchen (Sieg)"
+ },
+ {
+  "slug": "Wilnsdorf-Nordrhein-Westfalen",
+  "name": "Wilnsdorf",
+  "km": 8.4,
+  "lat": 50.81667,
+  "lng": 8.1,
+  "state": "Nordrhein-Westfalen",
+  "cards": 18,
+  "anchor": "Neunkirchen"
+ },
+ {
+  "slug": "Neunkirchen-Nordrhein-Westfalen",
+  "name": "Neunkirchen",
+  "km": 9.9,
+  "lat": 50.78778,
+  "lng": 7.99333,
+  "state": "Nordrhein-Westfalen",
+  "cards": 7,
+  "anchor": "Wilnsdorf"
+ },
+ {
+  "slug": "Kreuztal-Nordrhein-Westfalen",
+  "name": "Kreuztal",
+  "km": 10.0,
+  "lat": 50.96167,
+  "lng": 7.98806,
+  "state": "Nordrhein-Westfalen",
+  "cards": 19,
+  "anchor": "Freudenberg"
+ },
+ {
+  "slug": "Niederfischbach-Nordrhein-Westfalen",
+  "name": "Niederfischbach",
+  "km": 10.5,
+  "lat": 50.85564,
+  "lng": 7.87778,
+  "state": "Nordrhein-Westfalen",
+  "cards": 3,
+  "anchor": "Freudenberg"
+ },
+ {
+  "slug": "Freudenberg-Nordrhein-Westfalen",
+  "name": "Freudenberg",
+  "km": 11.4,
+  "lat": 50.89972,
+  "lng": 7.86667,
+  "state": "Nordrhein-Westfalen",
+  "cards": 20,
+  "anchor": "Niederfischbach"
+ },
+ {
+  "slug": "Kirchen+%28Sieg%29-Rheinland-Pfalz",
+  "name": "Kirchen (Sieg)",
+  "km": 12.3,
+  "lat": 50.80861,
+  "lng": 7.88333,
+  "state": "Rheinland-Pfalz",
+  "cards": 7,
+  "anchor": "Mudersbach"
+ },
+ {
+  "slug": "Hilchenbach-Nordrhein-Westfalen",
+  "name": "Hilchenbach",
+  "km": 15.0,
+  "lat": 50.99833,
+  "lng": 8.10944,
+  "state": "Nordrhein-Westfalen",
+  "cards": 7,
+  "anchor": "Netphen"
+ },
+ {
+  "slug": "Wenden-Nordrhein-Westfalen",
+  "name": "Wenden",
+  "km": 15.0,
+  "lat": 50.96667,
+  "lng": 7.86667,
+  "state": "Nordrhein-Westfalen",
+  "cards": 12,
+  "anchor": "Kreuztal"
+ },
+ {
+  "slug": "Haiger-Hessen",
+  "name": "Haiger",
+  "km": 19.4,
+  "lat": 50.74222,
+  "lng": 8.20389,
+  "state": "Hessen",
+  "cards": 8,
+  "anchor": "Dillenburg"
+ },
+ {
+  "slug": "H%C3%B6vels-Rheinland-Pfalz",
+  "name": "Hövels",
+  "km": 19.6,
+  "lat": 50.78806,
+  "lng": 7.78,
+  "state": "Rheinland-Pfalz",
+  "cards": 3,
+  "anchor": "Morsbach"
+ },
+ {
+  "slug": "Liebenscheid-Rheinland-Pfalz",
+  "name": "Liebenscheid",
+  "km": 20.4,
+  "lat": 50.69722,
+  "lng": 8.09833,
+  "state": "Rheinland-Pfalz",
+  "cards": 3,
+  "anchor": "Burbach"
+ },
+ {
+  "slug": "Erndtebr%C3%BCck-Nordrhein-Westfalen",
+  "name": "Erndtebrück",
+  "km": 20.6,
+  "lat": 50.98861,
+  "lng": 8.25611,
+  "state": "Nordrhein-Westfalen",
+  "cards": 12,
+  "anchor": "Hilchenbach"
+ },
+ {
+  "slug": "Olpe-Nordrhein-Westfalen",
+  "name": "Olpe",
+  "km": 21.2,
+  "lat": 51.02758,
+  "lng": 7.84335,
+  "state": "Nordrhein-Westfalen",
+  "cards": 16,
+  "anchor": "Drolshagen"
+ },
+ {
+  "slug": "Morsbach-Nordrhein-Westfalen",
+  "name": "Morsbach",
+  "km": 21.6,
+  "lat": 50.86667,
+  "lng": 7.71667,
+  "state": "Nordrhein-Westfalen",
+  "cards": 7,
+  "anchor": "Waldbröl"
+ },
+ {
+  "slug": "Dillenburg-Hessen",
+  "name": "Dillenburg",
+  "km": 23.4,
+  "lat": 50.74139,
+  "lng": 8.28389,
+  "state": "Hessen",
+  "cards": 11,
+  "anchor": "Haiger"
+ },
+ {
+  "slug": "Drolshagen-Nordrhein-Westfalen",
+  "name": "Drolshagen",
+  "km": 23.8,
+  "lat": 51.02236,
+  "lng": 7.77784,
+  "state": "Nordrhein-Westfalen",
+  "cards": 8,
+  "anchor": "Olpe"
+ },
+ {
+  "slug": "Eschenburg-Hessen",
+  "name": "Eschenburg",
+  "km": 23.8,
+  "lat": 50.81111,
+  "lng": 8.34889,
+  "state": "Hessen",
+  "cards": 14,
+  "anchor": "Dillenburg"
+ },
+ {
+  "slug": "Kirchhundem-Nordrhein-Westfalen",
+  "name": "Kirchhundem",
+  "km": 23.9,
+  "lat": 51.08611,
+  "lng": 8.09,
+  "state": "Nordrhein-Westfalen",
+  "cards": 9,
+  "anchor": "Lennestadt"
+ },
+ {
+  "slug": "Burbach-Nordrhein-Westfalen",
+  "name": "Burbach",
+  "km": 25.0,
+  "lat": 50.72932,
+  "lng": 7.75243,
+  "state": "Nordrhein-Westfalen",
+  "cards": 14,
+  "anchor": "Liebenscheid"
+ },
+ {
+  "slug": "Reichshof-Nordrhein-Westfalen",
+  "name": "Reichshof",
+  "km": 26.3,
+  "lat": 50.98815,
+  "lng": 7.69401,
+  "state": "Nordrhein-Westfalen",
+  "cards": 12,
+  "anchor": "Waldbröl"
+ },
+ {
+  "slug": "M%C3%BCschenbach-Rheinland-Pfalz",
+  "name": "Müschenbach",
+  "km": 27.2,
+  "lat": 50.6825,
+  "lng": 7.78444,
+  "state": "Rheinland-Pfalz",
+  "cards": 5,
+  "anchor": "Hövels"
+ },
+ {
+  "slug": "Rehe-Rheinland-Pfalz",
+  "name": "Rehe",
+  "km": 27.4,
+  "lat": 50.63528,
+  "lng": 8.11917,
+  "state": "Rheinland-Pfalz",
+  "cards": 3,
+  "anchor": "Driedorf"
+ },
+ {
+  "slug": "Bad+Laasphe-Nordrhein-Westfalen",
+  "name": "Bad Laasphe",
+  "km": 27.8,
+  "lat": 50.92722,
+  "lng": 8.41222,
+  "state": "Nordrhein-Westfalen",
+  "cards": 6,
+  "anchor": "Niederdieten"
+ },
+ {
+  "slug": "Lennestadt-Nordrhein-Westfalen",
+  "name": "Lennestadt",
+  "km": 27.8,
+  "lat": 51.12361,
+  "lng": 8.06806,
+  "state": "Nordrhein-Westfalen",
+  "cards": 22,
+  "anchor": "Kirchhundem"
+ },
+ {
+  "slug": "Attendorn-Nordrhein-Westfalen",
+  "name": "Attendorn",
+  "km": 28.2,
+  "lat": 51.11667,
+  "lng": 7.9,
+  "state": "Nordrhein-Westfalen",
+  "cards": 22,
+  "anchor": "Finnentrop"
+ },
+ {
+  "slug": "Waldbr%C3%B6l-Nordrhein-Westfalen",
+  "name": "Waldbröl",
+  "km": 28.5,
+  "lat": 50.87639,
+  "lng": 7.61722,
+  "state": "Nordrhein-Westfalen",
+  "cards": 7,
+  "anchor": "Morsbach"
+ },
+ {
+  "slug": "Driedorf-Hessen",
+  "name": "Driedorf",
+  "km": 29.0,
+  "lat": 50.63333,
+  "lng": 8.18333,
+  "state": "Hessen",
+  "cards": 5,
+  "anchor": "Rehe"
+ },
+ {
+  "slug": "Herborn-Hessen",
+  "name": "Herborn",
+  "km": 29.1,
+  "lat": 50.6825,
+  "lng": 8.30611,
+  "state": "Hessen",
+  "cards": 9,
+  "anchor": "Haiger"
+ },
+ {
+  "slug": "Niederdieten-Hessen",
+  "name": "Niederdieten",
+  "km": 29.2,
+  "lat": 50.87028,
+  "lng": 8.44139,
+  "state": "Hessen",
+  "cards": 5,
+  "anchor": "Bad Laasphe"
+ }
+]

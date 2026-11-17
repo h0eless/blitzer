@@ -1,8 +1,9 @@
 # Blitzer Siegen
 
 A personal replacement for the "Mobile Blitzer Hotspots" layer that blitzer.de
-removed from its app and web map, for Siegen / Kreuztal and the surrounding
-towns (Netphen, Hilchenbach, Wilnsdorf, Freudenberg, Neunkirchen, Burbach).
+removed from its app and web map: every town within roughly 30 km of Siegen
+(Siegerland, Sauerland, Bergisches Land, northern Rhineland-Palatinate and the
+Lahn-Dill corner of Hesse), including the small municipalities.
 
 Two pieces:
 
@@ -22,7 +23,7 @@ Everything the app shows comes from public blitzer.de data.
 python mobile_hotspots.py sites --live --auto-export
 
 # build / rebuild the installable app (no network needed)
-python make_app.py --title "Blitzer Siegen" --orte "Siegen, Kreuztal, Netphen, Hilchenbach, Wilnsdorf, Freudenberg, Neunkirchen, Burbach"
+python make_app.py --title "Blitzer Siegen" --orte "Umkreis 30 km um Siegen"
 
 # or let the daily script do both
 powershell -ExecutionPolicy Bypass -File .\daily.ps1
@@ -42,7 +43,9 @@ itself; no upload step.
   pulse while fresh (< 4 h). They age out after 12 h.
 - **Grey dashed circles** — archive: the spot is no longer listed, but it stays
   on the map as a hint where traps have stood before.
-- **Town bar** — filter map, list and archive by town.
+- **Town button** — one button in the header opens a searchable list of every
+  town, sorted by distance once the location is known; the choice filters map,
+  list and archive and is remembered on the phone.
 - **Neu tab** — what is new in the archive (7 / 30 days), fixed cameras, your
   whole database, and the archive.
 
@@ -55,6 +58,14 @@ itself; no upload step.
 | `/detail/...` | exact pin (SVG circle, Web-Mercator z=16) + monthly history |
 | `/karte/api/markers` | live feed, cluster markers subdivided recursively |
 
+The live feed is asked for the same type ids the map itself uses: `0–6` mobile
+speed / red light / tailgating checks, `ts` the semi-stationary trailer,
+`101–117` the stationary cameras. Types 20–29 are hazard markers (accident,
+road works, congestion) and stay out of the trap archive. The marker API
+returns an empty list for a box that is too large, so the ring is swept in
+0.45° × 0.55° tiles; cluster markers are then subdivided until every report has
+its own pin.
+
 - A URL is matched to an existing row of the same kind within **15 m** and
   re-keyed instead of duplicated, so a re-listed camera is the same place.
 - `SAME_PLACE_M = 50` is the "one place" radius for the live feed: sightings
@@ -65,6 +76,30 @@ itself; no upload step.
   vanish become `active=0` and are never deleted.
 - `mark_missing()` only archives when a scrape covered at least 50 % of the
   previously active spots per town, so a broken page cannot wipe the archive.
+- Stationary cameras that only the map knows (no `/ort/` page lists them) are
+  stored as archive rows with a `feed:fixed:<key>` pseudo URL, deduplicated
+  against page cameras by pin (15 m).
+
+### The 30 km ring
+
+`DEFAULT_ORTE` holds 32 towns: everything blitzer.de keeps an `/ort/` page for
+within roughly 30 km of Siegen, from the Siegerland over the southern Sauerland
+and the Bergisches Land to the northern Rhineland-Palatinate and the Lahn-Dill
+corner of Hesse. `orte_ring.json` documents that list.
+
+It was built once like this, because the region pages only show towns that have
+reports at that moment (Betzdorf, for example, has no page at all):
+
+1. crawl `/region/...` for Nordrhein-Westfalen, Rheinland-Pfalz and Hessen;
+2. walk blitzer.de's own "neighbouring towns" links outward from Siegen
+   (every `/ort/` page links eight adjacent towns);
+3. geocode the names through the Wikipedia API (50 names per request); names
+   Wikipedia treats as ambiguous fall back to a geosearch grid inside the ring;
+4. drop everything beyond 30 km, and drop a town whose `/ort/` neighbours are
+   not themselves in the ring — that is what removes same-name towns elsewhere
+   in Germany (Steinbach in the Taunus, Langenberg near Gütersloh).
+
+The scraper itself does not redo any of this; it just reads the slug list.
 
 ## Commands
 
@@ -122,6 +157,7 @@ python mobile_hotspots.py watch --interval 900 --auto-export
 | `blitzer_app.html` | local build output (ignored by git) |
 | `index.html` | the published app — this is what GitHub Pages serves |
 | `hotspots.sqlite3` | archive: `webspots`, `sightings`, `sighting_days`, `meta` |
+| `orte_ring.json` | the 32 ring towns with coordinates, as `DEFAULT_ORTE` was derived |
 | `daily.ps1` | scrape + rebuild + publish + log, runs from Task Scheduler |
 | `install_task.ps1` | registers the 07:00 / 16:00 task once |
 | `logs/` | one log per month, appended by `daily.ps1` (ignored by git) |
