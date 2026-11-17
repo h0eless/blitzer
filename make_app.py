@@ -698,7 +698,9 @@ function drawMap(){
       layer.addLayer(g);
       continue;
     }
-    const r = isFixed(s) ? 11 : live ? 13 : 6 + Math.min(9, s.days||0);
+    // Same size for every mobile spot: in the car a rare spot must be as easy
+    // to see as a frequent one. Frequency is told by colour only.
+    const r = isFixed(s) ? 11 : live ? 13 : 11;
     if(isNew(s) && !live){
       // a dashed halo so fresh finds are obvious on the map
       layer.addLayer(L.circleMarker([s.lat,s.lng], {
@@ -739,7 +741,7 @@ function drawMap(){
     }
     const c = COLOURS[sev(s)] || COLOURS[1];
     const m = L.circleMarker([s.lat,s.lng], {
-      radius:r, color:c, weight:2.5, fillColor:c, fillOpacity:.22,
+      radius:r, color:c, weight:3, fillColor:c, fillOpacity:.34,
       className:'pin', renderer:canvasRenderer
     });
     m.on('click', () => openSheet(s));

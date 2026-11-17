@@ -36,8 +36,9 @@ itself; no upload step.
 
 ## What the app shows
 
-- **Heat circles** — mobile spots, sized and coloured by how many days they were
-  measured (1, 2–4, 5–9, 10+).
+- **Heat circles** — mobile spots, all the same size so a rarely measured one is
+  as easy to spot in traffic as a frequent one; the colour carries the heat
+  (1, 2–4, 5–9, 10+ days).
 - **Blue squares** — fixed cameras, with the speed limit inside.
 - **Pink rings** — currently live-reported mobile traps, limit inside, sonar
   pulse while fresh (< 4 h). They age out after 12 h.
