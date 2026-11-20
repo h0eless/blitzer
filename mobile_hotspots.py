@@ -813,17 +813,83 @@ def store_webspots(conn, spots):
     return len(spots), rekeyed
 
 
+def _reconcile_fixed_feed(conn, pois, bbox, now_iso):
+    """Keep the feed-only cameras honest, sweep by sweep.
+
+    A feed row is matched by place, not by key: if any camera of the current
+    sweep stands within IDENTITY_M of its pin, the row is "seen" - reactivated
+    when it was archived, so a regenerated map key can never strand a camera
+    as active=0. A previously active row no sweep poi covers goes to the
+    archive (active=0), where it stays as a hint like every vanished spot.
+
+    Rows outside the swept box are not covered and stay untouched. Guard like
+    mark_missing: when more than half of the covered active cameras would
+    vanish at once, the sweep itself is suspect and nothing is archived.
+    """
+    pins = []
+    for poi in pois:
+        if int(poi.get("type", 0)) == 1000:
+            continue
+        try:
+            pins.append((float(poi["lat"]), float(poi["lng"])))
+        except (KeyError, TypeError, ValueError):
+            continue
+    sw_lat, sw_lng, ne_lat, ne_lng = bbox
+
+    seen, back, gone, active_before = [], [], [], 0
+    for url, lat, lng, active in conn.execute(
+        "SELECT url, lat, lng, active FROM webspots "
+        "WHERE kind='fixed' AND url LIKE ?",
+        (FEED_URL_PREFIX + "%",),
+    ).fetchall():
+        if not (sw_lat <= lat <= ne_lat and sw_lng <= lng <= ne_lng):
+            continue
+        hit = any(haversine_m(lat, lng, plat, plng) <= IDENTITY_M
+                  for plat, plng in pins)
+        if hit:
+            seen.append(url)
+            if not active:
+                back.append(url)
+        else:
+            if active:
+                active_before += 1
+                gone.append(url)
+
+    for url in back:
+        conn.execute(
+            "UPDATE webspots SET active=1, scraped_at=? WHERE url=?",
+            (now_iso, url),
+        )
+    if gone and active_before and len(gone) > (active_before + len(seen)) * 0.5:
+        print(
+            f"  feste Blitzer: {len(gone)} von {active_before + len(seen)} "
+            f"wären weg - Sweep verdächtig, Archiv bleibt unangetastet"
+        )
+        gone = []
+    if gone:
+        marks = ",".join("?" * len(gone))
+        conn.execute(
+            f"UPDATE webspots SET active=0 WHERE url IN ({marks})", gone
+        )
+    return len(back), len(gone)
+
+
 def store_fixed_feed(conn, bbox):
-    """Stationary cameras from the live map, as archive rows.
+    """Stationary cameras from the live map, kept in sync by every sweep.
 
     The town pages only list a town's own cameras; the map's fixed layer covers
     the whole ring, including cameras on country roads that no /ort/ page
     mentions. A camera already archived from a page (same pin within 15 m) is
     left alone, so its detail URL and month history survive.
+
+    This is the only place feed:fixed rows are maintained: new cameras are
+    added, returned ones reactivated, vanished ones archived - all matched by
+    pin, so the layer never needs manual care.
     """
     now_iso = _now_iso()
+    pois = sweep_bbox(bbox, FIXED_TYPES)
     added = 0
-    for poi in sweep_bbox(bbox, FIXED_TYPES):
+    for poi in pois:
         if int(poi.get("type", 0)) == 1000:
             continue
         try:
@@ -857,7 +923,15 @@ def store_fixed_feed(conn, bbox):
         )
         if not exists:
             added += 1
+    back, gone = _reconcile_fixed_feed(conn, pois, bbox, now_iso)
     conn.commit()
+    if back or gone:
+        bits = []
+        if back:
+            bits.append(f"{back} wieder da")
+        if gone:
+            bits.append(f"{gone} verschwunden -> Archiv")
+        print("  feste Blitzer aus der Karte: " + ", ".join(bits))
     return added
 
 

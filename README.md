@@ -87,7 +87,13 @@ its own pin.
   previously active spots per town, so a broken page cannot wipe the archive.
 - Stationary cameras that only the map knows (no `/ort/` page lists them) are
   stored as archive rows with a `feed:fixed:<key>` pseudo URL, deduplicated
-  against page cameras by pin (15 m).
+  against page cameras by pin (15 m). The same sweep reconciles them on every
+  run: a feed camera the map no longer returns within 15 m of its pin goes to
+  the archive (`active=0`), and one that returns is reactivated - matched by
+  place, not by key, so a regenerated map key can never strand a live camera
+  or create a duplicate. Rows outside the swept box are not covered and stay
+  untouched, and a sweep that would archive more than half of the covered
+  cameras at once is treated as broken and changes nothing.
 - Be polite: 0.25 s between requests, and a detail page whose URL is already
   archived is re-read at most every 3 days (`DETAIL_CACHE_DAYS`) — the pin
   never moves under the same URL and the month chart only changes at a month
