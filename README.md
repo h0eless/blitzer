@@ -12,7 +12,10 @@ Two pieces:
   GeoJSON / KML / GPX / `map.html`.
 - **`make_app.py`** — bakes the database into one self-contained HTML file
   (`blitzer_app.html`, published as `index.html`) that installs on an iPhone via
-  Safari → *Zum Home-Bildschirm*. No server, no build step.
+  Safari → *Zum Home-Bildschirm*. No server, no build step. Leaflet itself
+  loads from jsdelivr, with unpkg as a fallback: the page stays small and the
+  browser caches the library between visits instead of re-downloading it with
+  every refresh.
 
 Everything the app shows comes from public blitzer.de data.
 
@@ -189,6 +192,5 @@ python mobile_hotspots.py watch --interval 900 --auto-export
 | `daily.ps1` | scrape + rebuild + publish + log, runs from Task Scheduler |
 | `update.cmd` | double-click manual refresh; keeps the window open on errors |
 | `install_task.ps1` | registers the 07:00 / 16:00 task once |
-| `vendor/` | Leaflet 1.9.4 js + css, inlined into the app at build time |
 | `logs/` | one log per month, `error.log`, run lock (ignored by git) |
 | `hotspots_out/` | generated GeoJSON / KML / GPX / Leaflet page |

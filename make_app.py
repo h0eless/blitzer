@@ -39,7 +39,10 @@ APP = r"""<!doctype html>
 <meta name="apple-mobile-web-app-title" content="__TITLE__">
 <meta name="theme-color" content="#0b0d10">
 <title>__TITLE__</title>
-__LEAFLET_CSS__
+<link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+<link rel="preconnect" href="https://server.arcgisonline.com">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css"
+      onerror="this.onerror=null;this.href='https://unpkg.com/leaflet@1.9.4/dist/leaflet.css'">
 <style>
 :root{
   --bg:#0b0d10; --bg2:#12151a; --card:#171b21; --line:#232833;
@@ -210,7 +213,7 @@ main{flex:1;position:relative;padding-top:var(--head)}
 }
 .pinlabel-live{background:none;border:0;box-shadow:none;color:#fff;font-size:12px;
   font-weight:800;padding:0;text-shadow:0 1px 3px rgba(0,0,0,.9)}
-.sign.is-live{border-color:var(--live);color:#ffd7e0;background:#2a0f18}
+.sign.is-live{border-color:var(--live);color:#fff;background:#2a0f18}
 .tag.live{background:rgba(255,59,107,.18);color:#ff8aa6;border:1px solid rgba(255,59,107,.4)}
 
 /* archive / new view */
@@ -434,8 +437,19 @@ nav svg{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:1.8;
 
 <div class="toast" id="toast"></div>
 
-__LEAFLET_JS__
+<script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>window.L||document.write('<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"><\/script>')</script>
 <script>
+if(!window.L){
+  // both CDNs failed - say so instead of dying on the first L reference
+  const d=document.createElement('div');
+  d.style.cssText='position:fixed;left:16px;right:16px;top:42%;z-index:9999;'
+    +'background:#2a0f18;border:1px solid #ff3b6b;color:#ffd7e0;border-radius:12px;'
+    +'padding:14px 16px;text-align:center';
+  d.textContent='Kartenbibliothek konnte nicht geladen werden - bitte einmal neu laden.';
+  document.body.appendChild(d);
+  throw new Error('leaflet missing');
+}
 const SITES = __DATA__;
 const TOWNS = __TOWNS__;
 const SEEDED = "__SEEDED__";
@@ -804,7 +818,7 @@ function cardHTML(s, opts){
   }
   const signCls = fixed ? ' is-fixed' : live ? ' is-live' : '';
   return `<div class="card" data-i="${s.idx}">
-      <div class="sign${signCls}" style="border-color:${c};color:${c}">${limit}</div>
+      <div class="sign${signCls}" style="border-color:${c};color:${live ? '#fff' : c}">${limit}</div>
       <div class="card__t">
         <b>${(s.street||'Unbekannt').replace(/</g,'&lt;')}</b>
         <small>${bits.join(' · ').replace(/</g,'&lt;')}</small>
@@ -1255,27 +1269,6 @@ def _towns(sites):
     return out
 
 
-def _leaflet_parts():
-    """Leaflet inlined from vendor\\ when present, CDN links as a fallback.
-
-    Inlining makes the page self-contained: one less third party that could
-    be down or blocked while the map tiles already need the network anyway.
-    """
-    vjs = Path(__file__).with_name("vendor") / "leaflet-1.9.4.js"
-    vcss = Path(__file__).with_name("vendor") / "leaflet-1.9.4.css"
-    css_tag = '<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">'
-    js_tag = '<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>'
-    try:
-        css = "<style>" + vcss.read_text(encoding="utf-8") + "</style>"
-    except OSError:
-        css = css_tag
-    try:
-        js = "<script>" + vjs.read_text(encoding="utf-8") + "</script>"
-    except OSError:
-        js = js_tag
-    return css, js
-
-
 def build(db_path, out_path, title="Blitzer Hotspots", orte=""):
     conn = mh.open_db(db_path)
     sites = mh.build_sites(conn)
@@ -1298,12 +1291,9 @@ def build(db_path, out_path, title="Blitzer Hotspots", orte=""):
 
     payload = json.dumps(sites, ensure_ascii=False).replace("</", "<\\/")
     towns = json.dumps(_towns(sites), ensure_ascii=False).replace("</", "<\\/")
-    leaflet_css, leaflet_js = _leaflet_parts()
     page = (
         APP.replace("__DATA__", payload)
         .replace("__TOWNS__", towns)
-        .replace("__LEAFLET_CSS__", leaflet_css)
-        .replace("__LEAFLET_JS__", leaflet_js)
         .replace("__COUNT__", str(len(sites)))
         .replace("__HEADLINE__", html.escape(headline))
         .replace("__UPDATED__", html.escape(updated[:10]))
