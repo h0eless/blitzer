@@ -39,7 +39,7 @@ APP = r"""<!doctype html>
 <meta name="apple-mobile-web-app-title" content="__TITLE__">
 <meta name="theme-color" content="#0b0d10">
 <title>__TITLE__</title>
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+__LEAFLET_CSS__
 <style>
 :root{
   --bg:#0b0d10; --bg2:#12151a; --card:#171b21; --line:#232833;
@@ -434,7 +434,7 @@ nav svg{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:1.8;
 
 <div class="toast" id="toast"></div>
 
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+__LEAFLET_JS__
 <script>
 const SITES = __DATA__;
 const TOWNS = __TOWNS__;
@@ -491,10 +491,20 @@ function hoursSince(ts){
 }
 function isLive(s){ return !!s.live && hoursSince(s.live_at) <= LIVE_MAX_H; }
 function isLiveFresh(s){ return isLive(s) && hoursSince(s.live_at) <= LIVE_FRESH_H; }
+function parseTs(ts){
+  // the payload stores UTC "YYYY-MM-DD HH:MM:SS"; show it in the phone's zone
+  if(!ts) return null;
+  const t = Date.parse(String(ts).replace(' ', 'T') + 'Z');
+  return isNaN(t) ? null : new Date(t);
+}
 function timeOf(ts){
-  if(!ts) return '—';
-  const p = ts.split(' ');
-  return p.length > 1 ? p[1].slice(0,5) : ts;
+  const d = parseTs(ts);
+  if(d){
+    const two = n => String(n).padStart(2, '0');
+    return two(d.getHours()) + ':' + two(d.getMinutes());
+  }
+  const p = (ts || '—').split(' ');
+  return p.length > 1 ? p[1].slice(0,5) : (ts || '—');
 }
 function liveAgo(ts){
   const h = hoursSince(ts);
@@ -510,9 +520,13 @@ function ageDays(ts){
   return Math.floor((Date.now() - t) / 86400000);
 }
 function fmtDate(ts){
-  if(!ts) return '—';
-  const p = ts.slice(0,10).split('-');
-  return p.length === 3 ? `${p[2]}.${p[1]}.${p[0]}` : ts;
+  const d = parseTs(ts);
+  if(d){
+    const two = n => String(n).padStart(2, '0');
+    return two(d.getDate()) + '.' + two(d.getMonth() + 1) + '.' + d.getFullYear();
+  }
+  const p = (ts || '—').slice(0,10).split('-');
+  return p.length === 3 ? `${p[2]}.${p[1]}.${p[0]}` : (ts || '—');
 }
 function countNew(days){
   return SITES.filter(s => s.active !== false && townMatch(s) &&
@@ -1241,6 +1255,27 @@ def _towns(sites):
     return out
 
 
+def _leaflet_parts():
+    """Leaflet inlined from vendor\\ when present, CDN links as a fallback.
+
+    Inlining makes the page self-contained: one less third party that could
+    be down or blocked while the map tiles already need the network anyway.
+    """
+    vjs = Path(__file__).with_name("vendor") / "leaflet-1.9.4.js"
+    vcss = Path(__file__).with_name("vendor") / "leaflet-1.9.4.css"
+    css_tag = '<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">'
+    js_tag = '<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>'
+    try:
+        css = "<style>" + vcss.read_text(encoding="utf-8") + "</style>"
+    except OSError:
+        css = css_tag
+    try:
+        js = "<script>" + vjs.read_text(encoding="utf-8") + "</script>"
+    except OSError:
+        js = js_tag
+    return css, js
+
+
 def build(db_path, out_path, title="Blitzer Hotspots", orte=""):
     conn = mh.open_db(db_path)
     sites = mh.build_sites(conn)
@@ -1263,9 +1298,12 @@ def build(db_path, out_path, title="Blitzer Hotspots", orte=""):
 
     payload = json.dumps(sites, ensure_ascii=False).replace("</", "<\\/")
     towns = json.dumps(_towns(sites), ensure_ascii=False).replace("</", "<\\/")
+    leaflet_css, leaflet_js = _leaflet_parts()
     page = (
         APP.replace("__DATA__", payload)
         .replace("__TOWNS__", towns)
+        .replace("__LEAFLET_CSS__", leaflet_css)
+        .replace("__LEAFLET_JS__", leaflet_js)
         .replace("__COUNT__", str(len(sites)))
         .replace("__HEADLINE__", html.escape(headline))
         .replace("__UPDATED__", html.escape(updated[:10]))

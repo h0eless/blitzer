@@ -46,6 +46,7 @@ import math
 import sqlite3
 import sys
 import time
+import traceback
 import urllib.error
 import urllib.parse
 import urllib.request
@@ -84,7 +85,13 @@ MAX_DEPTH = 6
 # (a 0.5 x 0.9 box already comes back empty).
 MAX_TILE_LAT = 0.45
 MAX_TILE_LNG = 0.55
-REQUEST_DELAY = 0.12           # seconds between requests
+REQUEST_DELAY = 0.25           # seconds between requests - polite, keeps the
+                               # site answering and a full run under 5 minutes
+# How many days a detail page stays trustworthy. The pin never moves while the
+# URL stays the same, and the month chart only changes at a month boundary, so
+# a spot whose URL is already archived is re-read at most every few days
+# instead of on every run. Cuts the daily request count by two thirds.
+DETAIL_CACHE_DAYS = 3
 # How close two reports must be to count as the same place. Kept tight on
 # purpose: a camera 60 m further down the road is its own spot in the archive,
 # while two reports 40 m apart are the same camera seen twice.
@@ -437,7 +444,7 @@ def parse_detail(page):
     }
 
 
-def scrape_ort(ort_slug, sleep=REQUEST_DELAY, with_fixed=True):
+def scrape_ort(ort_slug, sleep=REQUEST_DELAY, with_fixed=True, cache=None):
     """Every camera the two town pages know about, coordinates included.
 
     /ort/mobile-messstellen-...  -> all mobile spots
@@ -445,9 +452,30 @@ def scrape_ort(ort_slug, sleep=REQUEST_DELAY, with_fixed=True):
 
     Both /ort/blitzer-in- pages are always read, so the archive keeps working
     even if the dedicated mobile page is retired. The same spot appears on both
-    pages with the same URL; the detail page is fetched only once.
+    pages with the same URL; the detail page is fetched only once - or not at
+    all when `cache` still holds a fresh reading for that URL.
     """
     out = []
+    cached_hits = 0
+
+    def reuse(entry):
+        """Spot dict from an archived row instead of a freshly read page."""
+        return {
+            "lat": entry["lat"], "lng": entry["lng"],
+            "days": None, "last_month": "", "address": "",
+            "months": entry["months"], "art": entry["art"],
+            "direction": "", "hint": "", "note": entry["note"],
+            "detail_at": entry["detail_at"],
+        }
+
+    def finish(card, merged):
+        merged["vmax"] = merged.get("vmax") or None
+        if card.get("days") is not None:
+            merged["days"] = card["days"]
+        if card.get("last_month"):
+            merged["last_month"] = card["last_month"]
+        merged["ort"] = ort_slug
+        return merged
 
     mobile_page = fetch_html(f"{SITE_BASE}/ort/mobile-messstellen-in-{ort_slug}")
     alt_page = fetch_html(f"{SITE_BASE}/ort/blitzer-in-{ort_slug}")
@@ -470,6 +498,15 @@ def scrape_ort(ort_slug, sleep=REQUEST_DELAY, with_fixed=True):
     cards = unique
 
     for card in cards:
+        entry = (cache or {}).get(card["url"])
+        if entry and _iso_age_days(entry["detail_at"]) <= DETAIL_CACHE_DAYS:
+            merged = {**card, **reuse(entry)}
+            merged["vmax"] = card.get("vmax") or entry.get("vmax")
+            merged = finish(card, merged)
+            merged["kind"] = "mobile"
+            cached_hits += 1
+            out.append(merged)
+            continue
         time.sleep(sleep)
         detail = fetch_html(card["url"])
         if detail is None:
@@ -484,17 +521,24 @@ def scrape_ort(ort_slug, sleep=REQUEST_DELAY, with_fixed=True):
         )
         # The list card is this spot's own summary line; the detail chart can be
         # missing, and its first Messtage match may belong to a nearby spot.
-        if card.get("days") is not None:
-            merged["days"] = card["days"]
-        if card.get("last_month"):
-            merged["last_month"] = card["last_month"]
-        merged["ort"] = ort_slug
+        merged = finish(card, merged)
         merged["kind"] = "mobile"
         out.append(merged)
 
     n_mobile = len(out)
     fixed_cards = parse_fixed_cards(alt_page) if with_fixed else []
     for card in fixed_cards:
+        entry = (cache or {}).get(card["url"])
+        if entry and _iso_age_days(entry["detail_at"]) <= DETAIL_CACHE_DAYS:
+            merged = {**card, **reuse(entry)}
+            merged["vmax"] = card.get("vmax") or entry.get("vmax")
+            merged["art"] = card.get("art") or entry["art"]
+            merged = finish(card, merged)
+            merged["kind"] = "fixed"
+            merged["days"] = None
+            cached_hits += 1
+            out.append(merged)
+            continue
         time.sleep(sleep)
         detail = fetch_html(card["url"])
         if detail is None:
@@ -512,18 +556,33 @@ def scrape_ort(ort_slug, sleep=REQUEST_DELAY, with_fixed=True):
         merged["days"] = None
         out.append(merged)
 
+    suffix = f", {cached_hits} aus dem Cache" if cached_hits else ""
     print(
         f"  {ort_slug}: {n_mobile} Messstelle(n) + "
-        f"{len(out) - n_mobile} feste(r) Blitzer"
+        f"{len(out) - n_mobile} feste(r) Blitzer{suffix}"
     )
     return out
 
 
-def scrape_orte(orte, sleep=REQUEST_DELAY, with_fixed=True):
-    spots = []
+def scrape_orte(orte, sleep=REQUEST_DELAY, with_fixed=True, cache=None):
+    """Scrape town by town; a town that fails is reported and skipped, the
+    rest of the run goes on. Returns (spots, failed slugs).
+
+    Skipping is safe: `mark_missing` only touches towns the fresh scrape
+    actually covered, so an unreachable town keeps its archive untouched.
+    """
+    spots, failed = [], []
     for slug in orte:
-        spots.extend(scrape_ort(slug, sleep=sleep, with_fixed=with_fixed))
-    return spots
+        try:
+            spots.extend(
+                scrape_ort(slug, sleep=sleep, with_fixed=with_fixed, cache=cache)
+            )
+        except Exception as exc:  # noqa: BLE001 - one bad town must not kill
+            # the run; without the try a single network hiccup wasted the
+            # whole scrape and stored nothing.
+            failed.append(slug)
+            print(f"  {slug}: FEHLGESCHLAGEN ({exc})")
+    return spots, failed
 
 
 # --------------------------------------------------------------------------- #
@@ -582,6 +641,7 @@ WEBSPOT_COLUMNS = {
     "note": "TEXT",
     "first_seen": "TEXT NOT NULL DEFAULT ''",
     "active": "INTEGER NOT NULL DEFAULT 1",
+    "detail_at": "TEXT",
 }
 
 
@@ -620,6 +680,12 @@ def _migrate(conn):
         "WHERE first_seen IS NULL OR first_seen = ''"
     )
     conn.execute("UPDATE webspots SET kind = 'mobile' WHERE kind IS NULL OR kind = ''")
+    # Existing pins were all read from detail pages at `scraped_at`, so older
+    # rows count as freshly read and become cacheable straight away.
+    conn.execute(
+        "UPDATE webspots SET detail_at = scraped_at "
+        "WHERE detail_at IS NULL OR detail_at = ''"
+    )
     conn.commit()
 
     if meta_get(conn, "seeded_at") is None:
@@ -630,6 +696,16 @@ def _migrate(conn):
 
 IDENTITY_M = 15.0     # same physical camera = same pin, within a few metres
 FEED_URL_PREFIX = "feed:fixed:"   # pseudo URL for cameras only the map knows
+
+
+def _iso_age_days(stamp):
+    """Age of a "YYYY-MM-DD HH:MM:SS" (UTC) stamp in days; huge when unparsable."""
+    try:
+        t = datetime.strptime((stamp or "")[:19], "%Y-%m-%d %H:%M:%S")
+    except ValueError:
+        return 1e9
+    age = datetime.now(timezone.utc).replace(tzinfo=None) - t
+    return max(0.0, age.total_seconds() / 86400.0)
 
 
 def _find_place(conn, kind, lat, lng, radius_m=IDENTITY_M):
@@ -652,6 +728,31 @@ def _find_place(conn, kind, lat, lng, radius_m=IDENTITY_M):
         if d <= best_d:
             best, best_d = url, d
     return best
+
+
+def detail_cache(conn):
+    """Archived rows a scrape may reuse instead of re-reading the detail page.
+
+    Keyed by URL: as long as blitzer.de keeps the same detail URL, the pin and
+    the month chart on that page are stable, so a row read within
+    DETAIL_CACHE_DAYS is a valid stand-in. Feed-only rows (feed:fixed:) have no
+    detail page and stay out.
+    """
+    out = {}
+    for url, lat, lng, months, art, note, vmax, detail_at in conn.execute(
+        "SELECT url, lat, lng, months, art, note, vmax, detail_at FROM webspots"
+    ):
+        if not url.startswith("http") or not detail_at:
+            continue
+        try:
+            month_map = json.loads(months) if months else {}
+        except ValueError:
+            month_map = {}
+        out[url] = {
+            "lat": lat, "lng": lng, "months": month_map, "art": art or "",
+            "note": note or "", "vmax": vmax, "detail_at": detail_at,
+        }
+    return out
 
 
 def store_webspots(conn, spots):
@@ -679,14 +780,15 @@ def store_webspots(conn, spots):
             """
             INSERT INTO webspots (url, ort, city, street, vmax, days, last_month,
                                   months, lat, lng, scraped_at, kind, art, note,
-                                  first_seen, active)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)
+                                  first_seen, active, detail_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?)
             ON CONFLICT(url) DO UPDATE SET
                 ort=excluded.ort, city=excluded.city, street=excluded.street,
                 vmax=excluded.vmax, days=excluded.days,
                 last_month=excluded.last_month, months=excluded.months,
                 lat=excluded.lat, lng=excluded.lng, scraped_at=excluded.scraped_at,
-                kind=excluded.kind, art=excluded.art, note=excluded.note, active=1
+                kind=excluded.kind, art=excluded.art, note=excluded.note, active=1,
+                detail_at=excluded.detail_at
             """,
             (
                 url,
@@ -704,6 +806,7 @@ def store_webspots(conn, spots):
                 s.get("art"),
                 s.get("note"),
                 now_iso,
+                s.get("detail_at") or now_iso,
             ),
         )
     conn.commit()
@@ -731,6 +834,9 @@ def store_fixed_feed(conn, bbox):
             continue
         key = poi.get("key") or poi.get("id") or f"{lat:.5f},{lng:.5f}"
         url = f"{FEED_URL_PREFIX}{key}"
+        exists = conn.execute(
+            "SELECT 1 FROM webspots WHERE url=?", (url,)
+        ).fetchone()
         addr = poi.get("address") or {}
         info = poi.get("info") or {}
         art = (info.get("kind") or "").strip() or "Fester Blitzer"
@@ -749,7 +855,8 @@ def store_fixed_feed(conn, bbox):
              _int(poi.get("vmax")), round(lat, 6), round(lng, 6), now_iso, art,
              now_iso),
         )
-        added += 1
+        if not exists:
+            added += 1
     conn.commit()
     return added
 
@@ -1281,6 +1388,24 @@ def export(conn, out_dir=OUT_DIR):
 # cli
 # --------------------------------------------------------------------------- #
 
+def _log_error(exc):
+    """Append the full traceback to logs\\error.log (the folder is gitignored).
+
+    The scheduler and update.cmd only show a one-line message; this file is
+    where the real cause of a failed run lands.
+    """
+    try:
+        log_dir = Path(__file__).with_name("logs")
+        log_dir.mkdir(exist_ok=True)
+        stamp = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC")
+        with open(log_dir / "error.log", "a", encoding="utf-8") as fh:
+            fh.write(f"=== {stamp} ===\n")
+            traceback.print_exc(file=fh)
+            fh.write("\n")
+    except OSError:
+        pass
+
+
 def parse_bbox(text):
     parts = [float(p) for p in text.split(",")]
     if len(parts) != 4:
@@ -1326,79 +1451,101 @@ def main(argv=None):
 
     conn = open_db(args.db)
 
-    if args.command == "sites":
-        orte = [o.strip() for o in args.orte.split(",") if o.strip()]
-        print(f"scraping {len(orte)} Ort(e)")
-        spots = scrape_orte(orte, with_fixed=not args.no_fixed)
-        if args.live:
-            run_once(conn, args.bbox, args.types, label="live ")
-            if not args.no_fixed:
-                n = store_fixed_feed(conn, args.bbox)
-                print(f"{n} feste(r) Blitzer aus der Karte")
-        stored, rekeyed = store_webspots(conn, spots)
-        gone = mark_missing(conn, spots)
-        # First run ever: everything just imported is the baseline, not "new".
-        if meta_get(conn, "seeded_at") is None or args.reseed:
-            meta_set(conn, "seeded_at", _now_iso())
-        extra = f", {rekeyed} URL(s) neu zugeordnet" if rekeyed else ""
-        print(f"{stored} Stelle(n) in db, {gone} neu archiviert{extra}")
-        if args.auto_export:
+    try:
+        if args.command == "sites":
+            orte = [o.strip() for o in args.orte.split(",") if o.strip()]
+            print(f"scraping {len(orte)} Ort(e)")
+            cache = detail_cache(conn)
+            spots, failed = scrape_orte(
+                orte, with_fixed=not args.no_fixed, cache=cache
+            )
+            if failed:
+                print(f"  {len(failed)} Ort(e) fehlgeschlagen: " + ", ".join(failed))
+            if args.live:
+                try:
+                    run_once(conn, args.bbox, args.types, label="live ")
+                    if not args.no_fixed:
+                        n = store_fixed_feed(conn, args.bbox)
+                        print(f"{n} neue feste Blitzer aus der Karte")
+                except Exception as exc:  # noqa: BLE001
+                    # The town pages already took minutes; keep their result.
+                    print(f"live sweep fehlgeschlagen ({exc})")
+            stored, rekeyed = store_webspots(conn, spots)
+            gone = mark_missing(conn, spots)
+            # First run ever: everything just imported is the baseline, not "new".
+            if meta_get(conn, "seeded_at") is None or args.reseed:
+                meta_set(conn, "seeded_at", _now_iso())
+            extra = f", {rekeyed} URL(s) neu zugeordnet" if rekeyed else ""
+            print(f"{stored} Stelle(n) in db, {gone} neu archiviert{extra}")
+            if not spots:
+                print("keine Stellen gelesen - Seite/Netzwerk pruefen")
+            if args.auto_export:
+                export(conn, args.out)
+
+        elif args.command == "new":
+            report_new(conn, args.days)
+
+        elif args.command == "once":
+            run_once(conn, args.bbox, args.types)
+            if args.with_fixed:
+                print(f"{store_fixed_feed(conn, args.bbox)} neue feste Blitzer aus der Karte")
+            if args.auto_export:
+                export(conn, args.out)
+
+        elif args.command == "watch":
+            print(f"watching {args.bbox} every {args.interval}s - ctrl-c to stop")
+            while True:
+                try:
+                    run_once(conn, args.bbox, args.types)
+                    if args.with_fixed:
+                        print(f"{store_fixed_feed(conn, args.bbox)} neue feste Blitzer aus der Karte")
+                    if args.auto_export:
+                        export(conn, args.out)
+                except KeyboardInterrupt:
+                    print("\nstopped")
+                    break
+                except Exception as exc:  # keep the watch alive across network hiccups
+                    print(f"sweep failed: {exc}")
+                time.sleep(args.interval)
+
+        elif args.command == "export":
             export(conn, args.out)
 
-    elif args.command == "new":
-        report_new(conn, args.days)
-
-    elif args.command == "once":
-        run_once(conn, args.bbox, args.types)
-        if args.with_fixed:
-            print(f"{store_fixed_feed(conn, args.bbox)} feste(r) Blitzer aus der Karte")
-        if args.auto_export:
-            export(conn, args.out)
-
-    elif args.command == "watch":
-        print(f"watching {args.bbox} every {args.interval}s - ctrl-c to stop")
-        while True:
-            try:
-                run_once(conn, args.bbox, args.types)
-                if args.with_fixed:
-                    print(f"{store_fixed_feed(conn, args.bbox)} feste(r) Blitzer aus der Karte")
-                if args.auto_export:
-                    export(conn, args.out)
-            except KeyboardInterrupt:
-                print("\nstopped")
-                break
-            except Exception as exc:  # keep the watch alive across network hiccups
-                print(f"sweep failed: {exc}")
-            time.sleep(args.interval)
-
-    elif args.command == "export":
-        export(conn, args.out)
-
-    elif args.command == "stats":
-        total = conn.execute("SELECT COUNT(*) FROM sightings").fetchone()[0]
-        web = conn.execute("SELECT COUNT(*) FROM webspots").fetchone()[0]
-        fixed = conn.execute(
-            "SELECT COUNT(*) FROM webspots WHERE kind='fixed'"
-        ).fetchone()[0]
-        archived = conn.execute(
-            "SELECT COUNT(*) FROM webspots WHERE active=0"
-        ).fetchone()[0]
-        seeded = meta_get(conn, "seeded_at") or "-"
-        merged = build_sites(conn)
-        fresh = sum(1 for s in merged if seeded != "-" and s["first_seen"] > seeded)
-        days = conn.execute("SELECT COUNT(DISTINCT day) FROM sighting_days").fetchone()[0]
-        hits = conn.execute("SELECT COALESCE(SUM(hits),0) FROM sightings").fetchone()[0]
-        span = conn.execute("SELECT MIN(first_seen), MAX(last_seen) FROM sightings").fetchone()
-        print(f"reports in db : {total}")
-        print(f"web spots     : {web}  ({fixed} fest, {web - fixed} mobil)")
-        print(f"merged view   : {len(merged)}  ({len(merged) - web} nur aus dem Live-Feed)")
-        live_n = sum(1 for s in merged if s.get("live"))
-        print(f"live now      : {live_n}  (letzte {LIVE_HOURS:.0f} h)")
-        print(f"new since     : {fresh}  (Archiv seit {seeded[:16] or '-'})")
-        print(f"not listed    : {archived}")
-        print(f"total hits    : {hits}")
-        print(f"days observed : {days}")
-        print(f"first / last  : {span[0]} / {span[1]}")
+        elif args.command == "stats":
+            total = conn.execute("SELECT COUNT(*) FROM sightings").fetchone()[0]
+            web = conn.execute("SELECT COUNT(*) FROM webspots").fetchone()[0]
+            fixed = conn.execute(
+                "SELECT COUNT(*) FROM webspots WHERE kind='fixed'"
+            ).fetchone()[0]
+            archived = conn.execute(
+                "SELECT COUNT(*) FROM webspots WHERE active=0"
+            ).fetchone()[0]
+            seeded = meta_get(conn, "seeded_at") or "-"
+            merged = build_sites(conn)
+            fresh = sum(1 for s in merged if seeded != "-" and s["first_seen"] > seeded)
+            days = conn.execute("SELECT COUNT(DISTINCT day) FROM sighting_days").fetchone()[0]
+            hits = conn.execute("SELECT COALESCE(SUM(hits),0) FROM sightings").fetchone()[0]
+            span = conn.execute("SELECT MIN(first_seen), MAX(last_seen) FROM sightings").fetchone()
+            print(f"reports in db : {total}")
+            print(f"web spots     : {web}  ({fixed} fest, {web - fixed} mobil)")
+            print(f"merged view   : {len(merged)}  ({len(merged) - web} nur aus dem Live-Feed)")
+            live_n = sum(1 for s in merged if s.get("live"))
+            print(f"live now      : {live_n}  (letzte {LIVE_HOURS:.0f} h)")
+            print(f"new since     : {fresh}  (Archiv seit {seeded[:16] or '-'})")
+            print(f"not listed    : {archived}")
+            print(f"total hits    : {hits}")
+            print(f"days observed : {days}")
+            print(f"first / last  : {span[0]} / {span[1]}")
+    except KeyboardInterrupt:
+        print("\nabgebrochen")
+        return 130
+    except Exception as exc:  # noqa: BLE001
+        # One short line on stdout keeps the scheduler log readable; the full
+        # traceback goes to logs\error.log, where it survives a closed window.
+        _log_error(exc)
+        print(f"FEHLER: {exc}")
+        print("Details: logs\\error.log")
+        return 1
 
     conn.close()
     return 0

@@ -34,6 +34,14 @@ GitHub Pages serves `index.html` from `main` at
 `daily.ps1` rebuilds the file, commits it and pushes it, so the page updates by
 itself; no upload step.
 
+## Manual update
+
+Double-click **`update.cmd`** — same pipeline as the scheduled run, and the
+window stays open, so a failure shows its message instead of flashing shut.
+Errors land in `logs\error.log` with the full traceback. If a run is already
+active (scheduled or manual), the second one prints "another run is still
+active" and exits without touching the database.
+
 ## What the app shows
 
 - **Heat circles** — mobile spots, all the same size so a rarely measured one is
@@ -80,6 +88,15 @@ its own pin.
 - Stationary cameras that only the map knows (no `/ort/` page lists them) are
   stored as archive rows with a `feed:fixed:<key>` pseudo URL, deduplicated
   against page cameras by pin (15 m).
+- Be polite: 0.25 s between requests, and a detail page whose URL is already
+  archived is re-read at most every 3 days (`DETAIL_CACHE_DAYS`) — the pin
+  never moves under the same URL and the month chart only changes at a month
+  boundary. The day-to-day "Messtage" count still comes fresh from the town
+  page every run. This cuts the daily request count by about two thirds.
+- One failing town no longer kills the run: it is reported and skipped, the
+  rest is stored, and the town's archive stays untouched. A network error in
+  the live sweep likewise keeps the page scrape. A hard crash writes its
+  traceback to `logs\error.log` and exits with code 1.
 
 ### The 30 km ring
 
@@ -119,8 +136,9 @@ Flags: `--orte "A-Land,B-Land"`, `--bbox sw,sw,ne,ne`, `--no-fixed`,
 ## Daily run (fully automatic)
 
 `daily.ps1` does everything: scrape all towns, sample the live feed, rebuild the
-app, copy it to `index.html`, commit `index.html` + `hotspots.sqlite3`, push to
-GitHub Pages, and log the result.
+app, copy it to `index.html`, commit `index.html` (plus the db in the morning
+run), push to GitHub Pages, and log the result. Two runs never overlap: a lock
+file in `logs\` makes the second one exit politely.
 
 Register it once:
 
@@ -137,10 +155,13 @@ Get-ScheduledTaskInfo -TaskName "Blitzer Archiv"
 Unregister-ScheduledTask -TaskName "Blitzer Archiv" -Confirm:$false
 ```
 
-Every run appends to `logs\daily-YYYY-MM.log`. Publishing is best effort: if the
-network or GitHub is down, the local archive is still updated and the next run
-pushes everything. The phone at <https://h0eless.github.io/blitzer/> updates
-itself after the push (hard-refresh Safari if it still shows the old build).
+Every run appends to `logs\daily-YYYY-MM.log` (utf-8; python errors also go to
+`logs\error.log`). Publishing is best effort: if the network or GitHub is down,
+the local archive is still updated and the next run pushes everything. The db
+blob is committed once a day, in the morning run, so the repository history
+grows at half speed. The phone at
+<https://h0eless.github.io/blitzer/> updates itself after the push
+(hard-refresh Safari if it still shows the old build).
 
 For fresher "live" pins during the day, the 16:00 run covers the afternoon
 commute; more often means running the watcher by hand:
@@ -160,7 +181,8 @@ python mobile_hotspots.py watch --interval 900 --auto-export
 | `hotspots.sqlite3` | archive: `webspots`, `sightings`, `sighting_days`, `meta` |
 | `orte_ring.json` | the 32 ring towns with coordinates, as `DEFAULT_ORTE` was derived |
 | `daily.ps1` | scrape + rebuild + publish + log, runs from Task Scheduler |
+| `update.cmd` | double-click manual refresh; keeps the window open on errors |
 | `install_task.ps1` | registers the 07:00 / 16:00 task once |
-| `logs/` | one log per month, appended by `daily.ps1` (ignored by git) |
+| `vendor/` | Leaflet 1.9.4 js + css, inlined into the app at build time |
+| `logs/` | one log per month, `error.log`, run lock (ignored by git) |
 | `hotspots_out/` | generated GeoJSON / KML / GPX / Leaflet page |
-| `siegen-hotspots/` | the first PowerShell prototype of the same idea |
