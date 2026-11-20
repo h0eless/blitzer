@@ -198,9 +198,9 @@ main{flex:1;position:relative;padding-top:var(--head)}
 
 /* fixed cameras: a blue square, deliberately not part of the heat scale */
 .pin-fixed{width:26px;height:26px;border-radius:7px;display:flex;align-items:center;
-  justify-content:center;background:#10283d;border:2.5px solid #4f9cff;color:#a9d4ff;
+  justify-content:center;background:#10283d;border:2.5px solid #4f9cff;color:#fff;
   font-size:11px;font-weight:800;box-shadow:0 0 0 2px rgba(0,0,0,.35),0 6px 14px rgba(0,0,0,.5)}
-.sign.is-fixed{border-color:#4f9cff;color:#a9d4ff}
+.sign.is-fixed{border-color:#4f9cff;color:#fff;background:#0e1a26}
 
 /* live mobile traps: pink ring, speed limit inside, sonar pulse while fresh.
    Deliberately different from the blue square of the fixed cameras. */
@@ -818,7 +818,7 @@ function cardHTML(s, opts){
   }
   const signCls = fixed ? ' is-fixed' : live ? ' is-live' : '';
   return `<div class="card" data-i="${s.idx}">
-      <div class="sign${signCls}" style="border-color:${c};color:${live ? '#fff' : c}">${limit}</div>
+      <div class="sign${signCls}" style="border-color:${c};color:${(live || fixed) ? '#fff' : c}">${limit}</div>
       <div class="card__t">
         <b>${(s.street||'Unbekannt').replace(/</g,'&lt;')}</b>
         <small>${bits.join(' · ').replace(/</g,'&lt;')}</small>
